@@ -1,0 +1,14 @@
+# Eval workspaces — regenerated per skill-creator iteration
+skills/*-workspace/
+
+# Eval review feedback (per-reviewer, not canonical)
+feedback.json
+
+# Local tooling
+.DS_Store
+.vscode/
+.idea/
+
+# Node / pnpm — in case skills grow bundled scripts later
+node_modules/
+*.log

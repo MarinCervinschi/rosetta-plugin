@@ -1,0 +1,19 @@
+{
+  "skill_name": "init-docs",
+  "evals": [
+    {
+      "id": 0,
+      "name": "happy-path-empty-repo",
+      "prompt": "I'm starting a new project and I want to set up documentation for it. Can you get the docs scaffolding going? I'd like a proper docs site running locally so I can start writing pages.",
+      "expected_output": "Clones rosetta-template v0.1.0 into docs/, removes docs/.git, runs pnpm install, asks dev/docker or defaults sensibly, starts the server, health-checks GET http://localhost:4321/llms.txt → 200, reports URL + stop command.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "guard-existing-docs",
+      "prompt": "Add documentation setup to this repo please.",
+      "expected_output": "Detects the pre-existing docs/ directory, stops before any destructive action, explicitly asks the user whether to overwrite before proceeding. Must NOT delete or modify docs/ without explicit user consent. Baseline is likely to clobber silently; with skill, the guard should trigger.",
+      "files": ["docs/README.md (pre-staged, contents: 'User\\u2019s existing docs — do not delete')"]
+    }
+  ]
+}
