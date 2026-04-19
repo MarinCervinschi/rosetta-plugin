@@ -6,6 +6,30 @@ The plugin tracks the [`rosetta-template`](https://github.com/MarinCervinschi/ro
 
 ## [Unreleased]
 
+## [0.4.2] — 2026-04-19
+
+### Changed
+
+- **Repo now ships as a self-marketplace.** Adds `.claude-plugin/marketplace.json` at the repo root that lists this plugin as `rosetta`, under a marketplace called `rosetta-md`. The plugin content moves under `rosetta/` per the Claude Code marketplace convention: `rosetta/.claude-plugin/plugin.json` + `rosetta/skills/...`. No changes to skill behavior.
+- **README install fixed.** The prior `/plugin install github.com/MarinCervinschi/rosetta-plugin` syntax wasn't valid — Claude Code requires a marketplace. New two-step install:
+  ```
+  /plugin marketplace add MarinCervinschi/rosetta-plugin
+  /plugin install rosetta@rosetta-md
+  /reload-plugins
+  ```
+
+### Migration
+
+If you installed `v0.4.1` via `claude --plugin-dir /path/to/rosetta-plugin`, your dev load path moves from the repo root to `rosetta-plugin/rosetta/`:
+
+```
+claude --plugin-dir /path/to/rosetta-plugin/rosetta
+```
+
+### Versioning
+
+- Plugin manifest bumped `0.4.1 → 0.4.2`.
+
 ## [0.4.1] — 2026-04-19
 
 ### Changed
@@ -85,7 +109,8 @@ First public release. Targets [rosetta-template `v0.2.0`](https://github.com/Mar
 
 - v0.1.0 was committed during development (commits `a6eb491` and `2904010`) but never tagged or published; all features from that pre-release era are folded into v0.2.0 above. The contract surface moved from `docs/` to `rosetta-docs/` between internal v0.1 and v0.2 — consumers who cloned `main` before the v0.2.0 tag and want to upgrade should re-run `/rosetta:init-docs` on a fresh workdir, or `mv docs rosetta-docs` their existing install.
 
-[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.0...v0.3.1

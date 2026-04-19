@@ -1,6 +1,6 @@
 {
   "name": "rosetta",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Operates the Rosetta.md documentation system: scaffolds a Starlight docs site from rosetta-template into rosetta-docs/, personalizes it with project metadata and an overview, writes Diátaxis-compliant pages, and queries live docs via /llms.txt. Ships four topic presets — doc-auth, doc-db, doc-migrations, doc-patterns — each a thin layer over write-docs with a domain-specific playbook, runnable inline or in background. Use for any documentation workflow in a Rosetta-powered project.",
   "author": {
     "name": "Marin Cervinschi"

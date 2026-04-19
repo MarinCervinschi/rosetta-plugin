@@ -6,8 +6,22 @@ Pairs with [`rosetta-template`](https://github.com/MarinCervinschi/rosetta-templ
 
 ## Install
 
+Add the marketplace (one-time):
+
 ```
-/plugin install github.com/MarinCervinschi/rosetta-plugin
+/plugin marketplace add MarinCervinschi/rosetta-plugin
+```
+
+Install the plugin:
+
+```
+/plugin install rosetta@rosetta-md
+```
+
+Then reload:
+
+```
+/reload-plugins
 ```
 
 ## Prerequisites

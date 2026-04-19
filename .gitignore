@@ -1,5 +1,5 @@
 # Eval workspaces — regenerated per skill-creator iteration
-skills/*-workspace/
+rosetta/skills/*-workspace/
 
 # Eval review feedback (per-reviewer, not canonical)
 feedback.json

@@ -1,0 +1,20 @@
+{
+  "name": "rosetta-md",
+  "owner": {
+    "name": "Marin Cervinschi"
+  },
+  "metadata": {
+    "description": "Tooling for the Rosetta.md AI-native documentation system — scaffolds, personalizes, writes, and queries docs sites built on rosetta-template."
+  },
+  "plugins": [
+    {
+      "name": "rosetta",
+      "source": "./rosetta",
+      "description": "Claude Code plugin that operates a Rosetta docs site: clones the template, personalizes it from project metadata, writes Diátaxis-classified MDX pages, and queries live docs with citations.",
+      "homepage": "https://github.com/MarinCervinschi/rosetta-plugin",
+      "repository": "https://github.com/MarinCervinschi/rosetta-plugin",
+      "license": "MIT",
+      "keywords": ["documentation", "diataxis", "starlight", "astro", "ai-native"]
+    }
+  ]
+}
