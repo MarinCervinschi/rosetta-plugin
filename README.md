@@ -1,21 +1,26 @@
 # rosetta-plugin
 
-The Claude Code plugin that operates [**Rosetta.md**](https://github.com/marincervinschi/rosetta-template) — an AI-native documentation system built on Astro Starlight.
+The Claude Code plugin that operates **Rosetta.md** — an AI-native documentation system built on Astro Starlight.
 
-- **Template** ([`rosetta-template`](https://github.com/marincervinschi/rosetta-template)) — the physical baseline: Starlight app, Diátaxis layout, Zod schema, `agent-docs-rules.md`, `/llms.txt` + raw-MD endpoints.
-- **Plugin** (this repo) — the agent operator: skills + slash commands that teach Claude Code to scaffold, write, and query docs against the template.
+Rosetta.md is a two-repo system:
 
-See the [orchestrator overview](https://github.com/marincervinschi/Rosetta.md/blob/main/orchestrator.md) for how the two repos fit together.
+- **Template** ([`MarinCervinschi/rosetta-template`](https://github.com/MarinCervinschi/rosetta-template)) — the physical baseline: Starlight app, Diátaxis layout, Zod schema, `agent-docs-rules.md`, `/health` + `/llms.txt` + raw-MD endpoints.
+- **Plugin** ([`MarinCervinschi/rosetta-plugin`](https://github.com/MarinCervinschi/rosetta-plugin), this repo) — the agent operator: skills that teach Claude Code to scaffold, personalize, write, and query docs against the template.
 
 ## Status
 
-**v0.2.0 — under active development.** All three v0.1 skills shipped in B2–B4 and were adapted in B2.5 to target the scoped `rosetta-docs/` directory and the new `/health` endpoint introduced by [rosetta-template v0.2.0](https://github.com/MarinCervinschi/rosetta-template/releases). Owner-led manual dogfooding precedes the `v0.2.0` tag.
+**v0.3.0 — active development.** `v0.2.0` is tagged and public; `v0.3.0` adds `/rosetta:personalize-docs` for project-aware customization of the scaffold, plus the scaffolded directory structure for four topic presets (`doc-auth`, `doc-db`, `doc-migrations`, `doc-patterns`). The presets themselves are disabled in `v0.3.0` — their content playbooks land in `v0.4.0`.
 
 | Skill | Command | Phase | Status |
 |---|---|---|---|
-| `init-docs` | `/rosetta:init-docs` | B2 | Shipped (v0.2.0 contract) |
-| `write-docs` | `/rosetta:write-docs "<topic>"` | B3 | Shipped (v0.2.0 contract) |
-| `query-docs` | `/rosetta:query-docs "<question>"` | B4 | Shipped (v0.2.0 contract) |
+| `init-docs` | `/rosetta:init-docs` | B2 | Shipped |
+| `write-docs` | `/rosetta:write-docs "<topic>"` | B3 | Shipped |
+| `query-docs` | `/rosetta:query-docs "<question>"` | B4 | Shipped |
+| `personalize-docs` | `/rosetta:personalize-docs` | C1 | Shipped in v0.3.0 |
+| `doc-auth` | `/rosetta:doc-auth` | C2 | Scaffolded in v0.3.0, content in v0.4.0 |
+| `doc-db` | `/rosetta:doc-db` | C2 | Scaffolded in v0.3.0, content in v0.4.0 |
+| `doc-migrations` | `/rosetta:doc-migrations` | C2 | Scaffolded in v0.3.0, content in v0.4.0 |
+| `doc-patterns` | `/rosetta:doc-patterns` | C2 | Scaffolded in v0.3.0, content in v0.4.0 |
 
 ## Install
 
@@ -42,8 +47,9 @@ claude --plugin-dir /path/to/rosetta-plugin
 | Plugin version | Requires rosetta-template | Clones into |
 |---|---|---|
 | `v0.2.x` | `≥ v0.2.0` | `rosetta-docs/` |
+| `v0.3.x` | `≥ v0.2.0` | `rosetta-docs/` |
 
-Breaking changes to the [contract surface](https://github.com/MarinCervinschi/Rosetta.md/blob/main/orchestrator.md#contract-surface-the-interface-between-the-two-repos) bump the minor version of both repos together while we're in `0.x`; from `1.0.0` onwards this becomes a major bump. Full release history in [`CHANGELOG.md`](./CHANGELOG.md).
+`v0.3.0` is backward-compatible with `rosetta-template v0.2.0` — `/rosetta:personalize-docs` edits files inside the scaffolded `rosetta-docs/` but doesn't rely on any new template surface. Breaking changes to the contract surface (paths under `rosetta-docs/`, Zod frontmatter schema, HTTP endpoint shapes, `agent-docs-rules.md` sections) bump the minor version of both repos together while we're in `0.x`; from `1.0.0` onwards this becomes a major bump. Full release history in [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Quickstart
 
@@ -54,16 +60,16 @@ Breaking changes to the [contract surface](https://github.com/MarinCervinschi/Ro
 # 2. In any project, scaffold rosetta-docs/ and start the dev server
 /rosetta:init-docs
 
+# 2b. (optional, recommended) personalize the scaffold with your project's
+#     name, stack, and a starting overview page. One-shot.
+/rosetta:personalize-docs
+
 # 3. Write a new doc page (Claude classifies via Diátaxis and runs pnpm check)
 /rosetta:write-docs "document the JWT auth middleware"
 
 # 4. Ask the docs for cited context (fetches /llms.txt, falls back to disk)
 /rosetta:query-docs "how does auth work in this repo?"
 ```
-
-## Architecture note: skills over commands
-
-Claude Code merges custom slash commands into skills: both `skills/<name>/SKILL.md` and `commands/<name>.md` produce a `/<plugin>:<name>` entry. This plugin uses only `skills/` — it's the recommended path for new plugins and avoids duplicate definitions. The slash command surface is derived from skill names.
 
 ## Design principles
 
