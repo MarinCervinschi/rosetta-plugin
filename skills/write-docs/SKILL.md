@@ -2,7 +2,7 @@
 name: write-docs
 description: Documents a feature, concept, API, or workflow as an MDX page in a Rosetta docs site at rosetta-docs/. Use when the user says "document X", "write docs for Y", "write a how-to for Z", "explain how A works", "add a reference page for B", or asks to capture knowledge about a code area. Classifies via Diátaxis (tutorials / how-to / reference / explanation), drafts MDX with valid frontmatter, uses rosetta components where they fit, and validates with `pnpm check` (or `npm run check`) before reporting success.
 argument-hint: "<topic>"
-allowed-tools: Read Write Glob Grep Bash(test *) Bash(ls rosetta-docs/*) Bash(cd rosetta-docs && pnpm *) Bash(cd rosetta-docs && npm *) Bash(cd rosetta-docs && pnpm astro check) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
+allowed-tools: Read Write Glob Grep Bash(test *) Bash(ls rosetta-docs/*) Bash(pnpm *) Bash(npm *) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
 ---
 
 # write-docs
@@ -20,6 +20,15 @@ Three things matter:
 1. **Re-read the rules fresh.** The canonical contract lives in `rosetta-docs/agent-docs-rules.md`. Read it at the start of every invocation. The user may have edited it since install, and the build will reject frontmatter the rules file didn't promise.
 2. **Classify before drafting.** Diátaxis isn't a tag you pick at the end — it dictates voice, length, and what's permissible on the page. Deciding first is cheaper than rewriting after.
 3. **Gate on the build, not on vibes.** `astro check` (via `pnpm check` or `npm run check`) is the only objective verdict. If it fails, the page isn't done — no matter how good the prose looks.
+
+## Path discipline
+
+**All Bash commands in this skill run from the project root** — the directory that *contains* `rosetta-docs/`. The Bash tool's working directory persists between calls, so a `cd rosetta-docs` silently breaks the next `test -d rosetta-docs/...` guard.
+
+- For **pnpm**, use `pnpm -C rosetta-docs <cmd>` (the `-C` flag is pnpm's shorthand for "change directory").
+- For **npm**, use `npm --prefix rosetta-docs <cmd>`.
+
+Never emit a bare `cd rosetta-docs`. All references to the scaffolded folder stay spelled out as `rosetta-docs/...` relative to the project root.
 
 ## Workflow
 
@@ -110,10 +119,10 @@ If the file already exists, stop and ask — don't silently overwrite someone el
 
 ### Step 10 — Gate: `check`
 
-Using the package manager picked in Step 2:
+Using the package manager picked in Step 2, from the project root:
 
-- pnpm: `cd rosetta-docs && pnpm check`
-- npm:  `cd rosetta-docs && npm run check`
+- pnpm: `pnpm -C rosetta-docs check`
+- npm:  `npm --prefix rosetta-docs run check`
 
 Both run `astro check` which validates the Zod schema against every page. If it fails, iterate on your draft — do not report success. Common failures and their §:
 

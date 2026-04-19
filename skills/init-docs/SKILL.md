@@ -2,7 +2,7 @@
 name: init-docs
 description: Scaffolds a Rosetta.md documentation site into the current project at rosetta-docs/. Use when the user wants to set up docs, initialize documentation, bootstrap rosetta-docs, add a docs folder, or says things like "init rosetta", "scaffold starlight docs", "start a docs site for this repo". Clones rosetta-template at a pinned release, installs deps with the user's preferred package manager (pnpm or npm), starts the dev or docker server, and verifies via /health.
 argument-hint: "[mode]"
-allowed-tools: Bash(git clone:*) Bash(rm -rf rosetta-docs/.git) Bash(cd rosetta-docs && pnpm *) Bash(cd rosetta-docs && npm *) Bash(cd rosetta-docs && docker compose *) Bash(curl *) Bash(ls *) Bash(test *) Bash(command -v *) Bash(which *)
+allowed-tools: Bash(git clone:*) Bash(rm -rf rosetta-docs/.git) Bash(pnpm *) Bash(npm *) Bash(docker compose *) Bash(curl *) Bash(ls *) Bash(test *) Bash(command -v *) Bash(which *)
 ---
 
 # init-docs
@@ -21,6 +21,18 @@ Four things matter:
 2. **Reproducibility.** Clone a *tagged release*, never `main`. Users must be able to reinstall the same plugin version against the same template version months from now.
 3. **Safety.** Never silently overwrite an existing `rosetta-docs/` folder either. Ask before destroying anything.
 4. **Verifiable success.** "Success" means `curl http://localhost:4321/health` returns HTTP 200 with a JSON body identifying the service as `rosetta`. Anything short of that is a failure the user needs to see.
+
+## Path discipline
+
+**All Bash commands in this skill run from the project root** — the directory that *contains* `rosetta-docs/`, not `rosetta-docs/` itself. The Bash tool's working directory persists between calls, so a `cd rosetta-docs` in one step silently breaks a `test -d rosetta-docs/...` in the next one (the path becomes a sibling to the folder you're now inside).
+
+Work around it:
+
+- For **pnpm**, use `pnpm -C rosetta-docs <cmd>` (the `-C` flag is pnpm's shorthand for "change directory").
+- For **npm**, use `npm --prefix rosetta-docs <cmd>`.
+- For **docker compose** (which has no clean "run from here" flag), wrap in a subshell: `(cd rosetta-docs && docker compose <cmd>)`. The parentheses make the `cd` effect local to the subshell; the parent shell's cwd doesn't move.
+
+Never emit a bare `cd rosetta-docs` on its own line. Every reference to the scaffolded folder stays spelled out as `rosetta-docs/...` relative to the project root.
 
 ## Workflow
 
@@ -70,29 +82,29 @@ If the clone fails (network, rate limit, tag missing), surface the error verbati
 
 ### Step 4 — Install dependencies
 
-Using the detected package manager:
+Using the detected package manager, from the project root:
 
-- pnpm: `cd rosetta-docs && pnpm install --frozen-lockfile`
-- npm:  `cd rosetta-docs && npm ci` (uses the committed `package-lock.json` if present; otherwise falls back to `npm install` — the template doesn't ship a `package-lock.json`, so npm will regenerate one)
+- pnpm: `pnpm -C rosetta-docs install --frozen-lockfile`
+- npm:  `npm --prefix rosetta-docs ci` (uses the committed `package-lock.json` if present; otherwise falls back to `npm install` — the template doesn't ship a `package-lock.json`, so npm will regenerate one)
 
-Concretely for npm, if `npm ci` errors about a missing lockfile, retry with `npm install` and note the lockfile regeneration in your report.
+Concretely for npm, if `npm ci` errors about a missing lockfile, retry with `npm --prefix rosetta-docs install` and note the lockfile regeneration in your report.
 
 ### Step 5 — Ask which server mode to run
 
 Present the two modes and let the user pick:
 
-- **Dev mode** (`pnpm dev` / `npm run dev`) — hot reload, fastest iteration, dies when the shell exits. Best for an active documentation session.
+- **Dev mode** — hot reload, fastest iteration, dies when the shell exits. Best for an active documentation session.
 - **Persistent mode** (`docker compose up -d --build`) — detached container, survives shell exits, rebuilds the image on first run (~60–90s cold). Docker uses pnpm internally regardless of the host package manager.
 
 If the user passed a `mode` argument (`dev` or `docker`), honor it without asking. Otherwise ask the question and wait for an answer.
 
 ### Step 6 — Start the server in the background
 
-Run the chosen command with a backgrounded shell so you don't block:
+Run the chosen command from the project root, with a backgrounded shell so you don't block:
 
-- Dev mode with pnpm: `cd rosetta-docs && pnpm dev` — use your `Bash` tool's `run_in_background: true` option.
-- Dev mode with npm: `cd rosetta-docs && npm run dev` — same, backgrounded.
-- Persistent mode: `cd rosetta-docs && docker compose up -d --build` — `-d` already detaches; no background flag needed.
+- Dev mode with pnpm: `pnpm -C rosetta-docs dev` — use your `Bash` tool's `run_in_background: true` option.
+- Dev mode with npm: `npm --prefix rosetta-docs run dev` — same, backgrounded.
+- Persistent mode: `(cd rosetta-docs && docker compose up -d --build)` — `-d` already detaches; the subshell keeps your cwd at the project root so later `test -d rosetta-docs/...` calls keep working.
 
 Capture the command's PID / container name so the user can stop it cleanly later.
 
@@ -115,7 +127,7 @@ done
 If the loop exits without `READY`:
 
 - In **dev mode**: re-read the last lines of the background shell's stdout/stderr — usually a port conflict, missing Node version, or Astro build error. Report the actual error, not a generic timeout.
-- In **persistent mode**: run `cd rosetta-docs && docker compose logs --tail=50` and surface those lines. First-run builds can legitimately exceed 60s; if logs show the build is still progressing, tell the user to wait a bit longer and re-run the health-check manually with `curl http://localhost:4321/health`.
+- In **persistent mode**: run `(cd rosetta-docs && docker compose logs --tail=50)` and surface those lines. First-run builds can legitimately exceed 60s; if logs show the build is still progressing, tell the user to wait a bit longer and re-run the health-check manually with `curl http://localhost:4321/health`.
 
 If `/health` returns 200 but `service` is not `"rosetta"`: another service is already bound to port 4321. Tell the user, stop, and let them free the port before retrying.
 
@@ -124,7 +136,7 @@ If `/health` returns 200 but `service` is not `"rosetta"`: another service is al
 On success, tell the user exactly:
 
 1. **The URL.** `http://localhost:4321/` (and mention `http://localhost:4321/llms.txt` as the llmstxt.org index, plus `/health` as the readiness probe).
-2. **How to stop it.** Dev mode: kill the backgrounded shell or press Ctrl-C in it. Persistent mode: `cd rosetta-docs && docker compose down`.
+2. **How to stop it.** Dev mode: kill the backgrounded shell or press Ctrl-C in it. Persistent mode: `(cd rosetta-docs && docker compose down)`.
 3. **Next steps.** `/rosetta:write-docs "<topic>"` to author a page; `/rosetta:query-docs "<question>"` to pull context from existing docs.
 
 Do not claim success if the health-check failed. A half-working install is worse than a clean error, because the user will waste time on the next skill wondering why it's flaking.
