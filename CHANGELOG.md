@@ -6,6 +6,28 @@ The plugin tracks the [`rosetta-template`](https://github.com/MarinCervinschi/ro
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-04-19
+
+Topic presets go live. The four skills scaffolded in v0.3.0 (`doc-auth`, `doc-db`, `doc-migrations`, `doc-patterns`) now have playbook content and are enabled. Each is a thin preset on top of the `write-docs` engine, pre-framed for a domain and loaded with a topic-specific reference file, and each asks the user at the start whether to run inline (interactive) or in background (unattended). README rewritten to be user-facing rather than dev-facing.
+
+### Added
+
+- **`/rosetta:doc-auth`** — documents authentication (sessions / tokens / middleware / guards / decorators / permissions). Playbook at `skills/write-docs/references/auth.md` lists probe targets, Diátaxis placement hints, component guidance, and the questions to ask the user when a codebase has multiple schemes or a migration in flight.
+- **`/rosetta:doc-db`** — documents schema / tables / entities / ORM models. Playbook at `skills/write-docs/references/db.md` covers ORM detection, Markdown-table output shape (no `<ApiRef>` for tables), and the scoping question of which tables are load-bearing.
+- **`/rosetta:doc-migrations`** — documents migration workflow (authoring, applying, rolling back). Playbook at `skills/write-docs/references/migrations.md` covers tool detection, typical how-to + explanation split, and the questions an agent can't infer from code (staging gates, approval flow, rollback playbook).
+- **`/rosetta:doc-patterns`** — documents cross-cutting techniques (decorators, middleware, filters, factories, service layers). Playbook at `skills/write-docs/references/patterns.md` enforces the "3+ recurrences = a pattern" rule and the question of whether any pattern is being phased out.
+
+### Changed
+
+- **`disable-model-invocation` removed from the four preset skills.** They're live and auto-invokable now.
+- **Inline / background question** baked into each preset. Default is inline, which stays interactive (pauses to ask clarifications on ambiguous patterns). Background dispatches to a forked subagent (or `claude -p` via Bash when no subagent is available), returning an identifier so the user can follow along.
+- **README rewritten** for end users — installation, prerequisites, quickstart, command reference, acceptance criteria for "good output". Dev-facing content (release status, phase tracking, design principles, compatibility matrix) moved into `CHANGELOG.md` where it belongs.
+
+### Versioning
+
+- Plugin manifest bumped `0.3.1 → 0.4.0`.
+- Still targets `rosetta-template ≥ v0.3.0`.
+
 ## [0.3.1] — 2026-04-19
 
 Re-targets [rosetta-template `v0.3.0`](https://github.com/MarinCervinschi/rosetta-template/releases/tag/v0.3.0), which made site identity data-driven via `rosetta-docs/src/rosetta.config.json`. Personalization is now a JSON edit plus a prose page — the plugin touches two files instead of three.
@@ -57,7 +79,8 @@ First public release. Targets [rosetta-template `v0.2.0`](https://github.com/Mar
 
 - v0.1.0 was committed during development (commits `a6eb491` and `2904010`) but never tagged or published; all features from that pre-release era are folded into v0.2.0 above. The contract surface moved from `docs/` to `rosetta-docs/` between internal v0.1 and v0.2 — consumers who cloned `main` before the v0.2.0 tag and want to upgrade should re-run `/rosetta:init-docs` on a fresh workdir, or `mv docs rosetta-docs` their existing install.
 
-[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/MarinCervinschi/rosetta-plugin/releases/tag/v0.2.0
