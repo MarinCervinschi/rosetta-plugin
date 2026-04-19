@@ -41,10 +41,9 @@ claude --plugin-dir /path/to/rosetta-plugin
 
 | Plugin version | Requires rosetta-template | Clones into |
 |---|---|---|
-| `v0.1.x` | `v0.1.0` exactly | `docs/` |
 | `v0.2.x` | `≥ v0.2.0` | `rosetta-docs/` |
 
-Breaking changes to the [contract surface](https://github.com/MarinCervinschi/Rosetta.md/blob/main/orchestrator.md#contract-surface-the-interface-between-the-two-repos) bump the minor version of both repos together while we're in `0.x`; from `1.0.0` onwards this becomes a major bump.
+Breaking changes to the [contract surface](https://github.com/MarinCervinschi/Rosetta.md/blob/main/orchestrator.md#contract-surface-the-interface-between-the-two-repos) bump the minor version of both repos together while we're in `0.x`; from `1.0.0` onwards this becomes a major bump. Full release history in [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Quickstart
 
