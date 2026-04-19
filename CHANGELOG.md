@@ -6,6 +6,12 @@ The plugin tracks the [`rosetta-template`](https://github.com/MarinCervinschi/ro
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-04-19
+
+### Changed
+
+- **README rewritten for clarity.** Tighter sections, shorter prose, each quickstart command in its own code block instead of one dense chained block. Command table scannable. No functional changes.
+
 ## [0.4.0] — 2026-04-19
 
 Topic presets go live. The four skills scaffolded in v0.3.0 (`doc-auth`, `doc-db`, `doc-migrations`, `doc-patterns`) now have playbook content and are enabled. Each is a thin preset on top of the `write-docs` engine, pre-framed for a domain and loaded with a topic-specific reference file, and each asks the user at the start whether to run inline (interactive) or in background (unattended). README rewritten to be user-facing rather than dev-facing.
@@ -79,7 +85,8 @@ First public release. Targets [rosetta-template `v0.2.0`](https://github.com/Mar
 
 - v0.1.0 was committed during development (commits `a6eb491` and `2904010`) but never tagged or published; all features from that pre-release era are folded into v0.2.0 above. The contract surface moved from `docs/` to `rosetta-docs/` between internal v0.1 and v0.2 — consumers who cloned `main` before the v0.2.0 tag and want to upgrade should re-run `/rosetta:init-docs` on a fresh workdir, or `mv docs rosetta-docs` their existing install.
 
-[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.2.0...v0.3.0
