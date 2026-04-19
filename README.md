@@ -9,7 +9,7 @@ Rosetta.md is a two-repo system:
 
 ## Status
 
-**v0.3.0 — active development.** `v0.2.0` is tagged and public; `v0.3.0` adds `/rosetta:personalize-docs` for project-aware customization of the scaffold, plus the scaffolded directory structure for four topic presets (`doc-auth`, `doc-db`, `doc-migrations`, `doc-patterns`). The presets themselves are disabled in `v0.3.0` — their content playbooks land in `v0.4.0`.
+**v0.3.1 — active development.** `v0.3.0` introduced `/rosetta:personalize-docs` and the Layer 2 preset scaffolding. `v0.3.1` re-targets `rosetta-template v0.3.0` (JSON-driven metadata): personalize-docs now edits `rosetta.config.json` + `overview.mdx` (2 files) instead of `astro.config.mjs` + `index.mdx` + `overview.mdx` (3 files), and `/rosetta:init-docs` offers to personalize inline right after the health-check passes. Layer 2 preset content still lands in `v0.4.0`.
 
 | Skill | Command | Phase | Status |
 |---|---|---|---|
@@ -44,12 +44,13 @@ claude --plugin-dir /path/to/rosetta-plugin
 
 ## Compatibility
 
-| Plugin version | Requires rosetta-template | Clones into |
-|---|---|---|
-| `v0.2.x` | `≥ v0.2.0` | `rosetta-docs/` |
-| `v0.3.x` | `≥ v0.2.0` | `rosetta-docs/` |
+| Plugin version | Requires rosetta-template | Clones into | Notes |
+|---|---|---|---|
+| `v0.2.x` | `v0.2.0` exactly | `rosetta-docs/` | |
+| `v0.3.0` | `v0.2.0` | `rosetta-docs/` | personalize-docs edits 3 files directly (pre-JSON) |
+| `v0.3.1+` | `≥ v0.3.0` | `rosetta-docs/` | personalize-docs edits `rosetta.config.json` + `overview.mdx` (2 files, JSON-driven) |
 
-`v0.3.0` is backward-compatible with `rosetta-template v0.2.0` — `/rosetta:personalize-docs` edits files inside the scaffolded `rosetta-docs/` but doesn't rely on any new template surface. Breaking changes to the contract surface (paths under `rosetta-docs/`, Zod frontmatter schema, HTTP endpoint shapes, `agent-docs-rules.md` sections) bump the minor version of both repos together while we're in `0.x`; from `1.0.0` onwards this becomes a major bump. Full release history in [`CHANGELOG.md`](./CHANGELOG.md).
+`v0.3.1` targets `rosetta-template v0.3.0`, which introduced the `rosetta.config.json` metadata file that `personalize-docs` edits. Using `v0.3.1` against an older template will fail (no JSON to edit); using `v0.3.0` against the new template is possible but not recommended (the plugin would write to `astro.config.mjs`/`index.mdx` while those files now read from the JSON — mixed sources). Upgrade both repos together. Breaking changes to the contract surface bump the minor version of both repos while we're in `0.x`; from `1.0.0` onwards this becomes a major bump. Full release history in [`CHANGELOG.md`](./CHANGELOG.md).
 
 ## Quickstart
 

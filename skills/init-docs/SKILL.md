@@ -9,7 +9,7 @@ allowed-tools: Bash(git clone:*) Bash(rm -rf rosetta-docs/.git) Bash(pnpm *) Bas
 
 Bootstraps a Rosetta-powered Starlight documentation site into the user's project by cloning the [`rosetta-template`](https://github.com/MarinCervinschi/rosetta-template) at a pinned release, installing dependencies, and bringing up a local server that exposes `/health`, `/llms.txt`, and the raw-MD endpoints.
 
-The user asked you to set up docs. Your job is to make that happen reliably, without destroying existing work, and to leave the user with a running URL they can open immediately.
+The user asked you to set up docs. Your job is to make that happen reliably, without destroying existing work, to leave the user with a running URL they can open immediately, and then offer to personalize the scaffold with the project's identity in the same session.
 
 ## Why this skill exists
 
@@ -70,11 +70,11 @@ command -v pnpm >/dev/null 2>&1 && echo "pm=pnpm" || (command -v npm >/dev/null 
 ### Step 3 — Clone the pinned template release
 
 ```bash
-git clone --depth 1 --branch v0.2.0 https://github.com/MarinCervinschi/rosetta-template.git rosetta-docs
+git clone --depth 1 --branch v0.3.0 https://github.com/MarinCervinschi/rosetta-template.git rosetta-docs
 rm -rf rosetta-docs/.git
 ```
 
-Why `--depth 1 --branch v0.2.0`: shallow-clone a tagged release, not the mutable `main` branch. This guarantees the same template contract (paths, schema, endpoints) every time. v0.2.0 is this skill's target; later plugin versions may bump it.
+Why `--depth 1 --branch v0.3.0`: shallow-clone a tagged release, not the mutable `main` branch. This guarantees the same template contract (paths, schema, endpoints, and the `rosetta.config.json` metadata layer introduced in v0.3.0) every time. Later plugin versions may bump this to newer template tags.
 
 Why `rm -rf rosetta-docs/.git`: the user's project owns `rosetta-docs/` now. Leaving the template's git history inside creates a nested repo that breaks `git status` in the parent.
 
@@ -131,13 +131,23 @@ If the loop exits without `READY`:
 
 If `/health` returns 200 but `service` is not `"rosetta"`: another service is already bound to port 4321. Tell the user, stop, and let them free the port before retrying.
 
-### Step 8 — Report
+### Step 8 — Offer to personalize
+
+Before the final report, ask the user whether to personalize the docs with the project's identity now:
+
+> Your docs are live at http://localhost:4321/. Right now they show the template's default identity (title "Rosetta.md", generic lede). I can personalize them now — detect your project's name, description, and stack from `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `README.md`, preview the changes, and write them only after you confirm. Want me to go ahead? (yes / no)
+
+- If **no**: skip to Step 9. The final report will mention `/rosetta:personalize-docs` as the follow-up.
+- If **yes**: load the workflow from the sibling skill at `${CLAUDE_SKILL_DIR}/../personalize-docs/SKILL.md`, and continue execution there from its **Step 3 (Detect project metadata)** onward. Rationale: its Steps 1–2 (pre-flight + guard) are trivially satisfied — you just scaffolded `rosetta-docs/`, and the freshly-written `rosetta.config.json` has `"personalized": false`. So there's no need to re-run those checks; jump straight into detection. Treat the preview + confirmation gate in that skill's Step 4 as authoritative — if the user declines there, stop. On success, fold its Step 7 report into the combined report below.
+
+### Step 9 — Report
 
 On success, tell the user exactly:
 
 1. **The URL.** `http://localhost:4321/` (and mention `http://localhost:4321/llms.txt` as the llmstxt.org index, plus `/health` as the readiness probe).
 2. **How to stop it.** Dev mode: kill the backgrounded shell or press Ctrl-C in it. Persistent mode: `(cd rosetta-docs && docker compose down)`.
-3. **Next steps.** `/rosetta:write-docs "<topic>"` to author a page; `/rosetta:query-docs "<question>"` to pull context from existing docs.
+3. **Whether the docs got personalized** in Step 8, and — if not — a suggestion to run `/rosetta:personalize-docs` later.
+4. **Next steps.** `/rosetta:write-docs "<topic>"` to author a page; `/rosetta:query-docs "<question>"` to pull context from existing docs.
 
 Do not claim success if the health-check failed. A half-working install is worse than a clean error, because the user will waste time on the next skill wondering why it's flaking.
 
@@ -151,21 +161,52 @@ Accept one optional positional argument, `mode`:
 
 Treat anything else as unrecognized and fall back to asking.
 
+The personalize offer in Step 8 always asks, regardless of argument — it's the one place the skill needs a real user decision.
+
 ## What the user should see at the end
 
 A short report, nothing more. Template:
+
+If the user declined personalize:
 
 ```
 Rosetta docs are live.
 
   URL:       http://localhost:4321/
-  Health:    http://localhost:4321/health  (ok, service=rosetta, v0.2.0)
+  Health:    http://localhost:4321/health  (ok, service=rosetta, v0.3.0)
   Index:     http://localhost:4321/llms.txt
   Stop:      <command based on mode>
   Location:  rosetta-docs/
   Rules:     rosetta-docs/agent-docs-rules.md  (authoritative; re-read by every rosetta skill)
 
+Identity:  template default (title "Rosetta.md"). Run /rosetta:personalize-docs
+           to brand the site with your project's name, description, and stack.
+
 Next: /rosetta:write-docs "<topic>" or /rosetta:query-docs "<question>".
+```
+
+If the user accepted personalize, fold the personalize report in:
+
+```
+Rosetta docs are live and personalized.
+
+  URL:       http://localhost:4321/
+  Health:    http://localhost:4321/health  (ok, service=rosetta, v0.3.0)
+  Index:     http://localhost:4321/llms.txt
+  Stop:      <command based on mode>
+
+Identity:
+  Name:        <project-name>
+  Tagline:     <tagline>
+  Stack:       <summary>
+  Overview:    http://localhost:4321/explanation/overview/
+
+Wrote:
+  rosetta-docs/src/rosetta.config.json                    (metadata + personalized=true)
+  rosetta-docs/src/content/docs/explanation/overview.mdx  (project prose)
+
+Next: /rosetta:write-docs "<topic>" or /rosetta:query-docs "<question>".
+To edit the overview later: /rosetta:write-docs "update the project overview".
 ```
 
 No marketing copy, no summary of everything you did. The user saw the tool calls; they don't need them narrated.

@@ -6,6 +6,24 @@ The plugin tracks the [`rosetta-template`](https://github.com/MarinCervinschi/ro
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-04-19
+
+Re-targets [rosetta-template `v0.3.0`](https://github.com/MarinCervinschi/rosetta-template/releases/tag/v0.3.0), which made site identity data-driven via `rosetta-docs/src/rosetta.config.json`. Personalization is now a JSON edit plus a prose page — the plugin touches two files instead of three.
+
+### Changed
+
+- **`/rosetta:personalize-docs` — simpler write surface.** Previously edited three files (`astro.config.mjs` title/description, `index.mdx` splash, new `explanation/overview.mdx`). Now edits two: `rosetta-docs/src/rosetta.config.json` (name, tagline, description, stack, `personalized` flag) and `rosetta-docs/src/content/docs/explanation/overview.mdx` (project-specific prose). The template's `astro.config.mjs` and `index.mdx` read from the JSON automatically via import + `{config.*}` expressions, so they don't need plugin-side edits anymore. The one-shot guard moved from an HTML comment marker in `overview.mdx` to the `"personalized": true` field in the JSON — single source of truth, and MDX doesn't support HTML comments anyway (a regression discovered and fixed in smoke-testing).
+- **`/rosetta:init-docs` — offers personalization inline.** After the health-check passes, the skill now asks the user whether to personalize the docs immediately. On "yes" it loads the workflow from the sibling `personalize-docs` skill and continues from its Step 3 (skipping the pre-flight and guard since they're trivially satisfied on a fresh scaffold). On "no" the final report mentions `/rosetta:personalize-docs` as the follow-up. No keyword flags — it's a runtime question, as the user specified during the C1 brainstorming.
+- **Clone branch bumped `v0.2.0 → v0.3.0`.** `/rosetta:init-docs` now targets the new template release, which is the one that ships `rosetta.config.json`.
+
+### Compatibility
+
+- **Plugin `v0.3.1` requires `rosetta-template ≥ v0.3.0`.** Against `v0.2.0` it would fail at the `personalize-docs` pre-flight (no JSON to edit). Against `v0.3.0+` it behaves as described above. Consumers on plugin `v0.3.0` + template `v0.2.0` keep working; upgrading the plugin requires upgrading the template in the same session (delete `rosetta-docs/` and re-run `/rosetta:init-docs`).
+
+### Versioning
+
+- Plugin manifest bumped `0.3.0 → 0.3.1`.
+
 ## [0.3.0] — 2026-04-19
 
 First release targeting the v0.3 cycle: a personalization skill for freshly-scaffolded docs sites, and the architectural scaffolding for a family of topic presets whose content playbooks land in v0.4.0. Still targets [rosetta-template `v0.2.0`](https://github.com/MarinCervinschi/rosetta-template/releases/tag/v0.2.0) — no template changes needed for this release.
@@ -39,6 +57,7 @@ First public release. Targets [rosetta-template `v0.2.0`](https://github.com/Mar
 
 - v0.1.0 was committed during development (commits `a6eb491` and `2904010`) but never tagged or published; all features from that pre-release era are folded into v0.2.0 above. The contract surface moved from `docs/` to `rosetta-docs/` between internal v0.1 and v0.2 — consumers who cloned `main` before the v0.2.0 tag and want to upgrade should re-run `/rosetta:init-docs` on a fresh workdir, or `mv docs rosetta-docs` their existing install.
 
-[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/MarinCervinschi/rosetta-plugin/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/MarinCervinschi/rosetta-plugin/releases/tag/v0.2.0
