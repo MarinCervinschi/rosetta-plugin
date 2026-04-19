@@ -9,13 +9,13 @@ See the [orchestrator overview](https://github.com/marincervinschi/Rosetta.md/bl
 
 ## Status
 
-**v0.1.0 — under active development.** Phase B1 (skeleton) and B2 (`init-docs` / `/rosetta:init-docs`) are the current focus. Phases B3 (`write-docs`) and B4 (`query-docs`) are stubbed and will be filled in next.
+**v0.1.0 — under active development.** All three v0.1 skills are implemented on `main`; owner-led manual dogfooding precedes the `v0.1.0` tag.
 
 | Skill | Command | Phase | Status |
 |---|---|---|---|
-| `init-docs` | `/rosetta:init-docs` | B2 | In progress |
-| `write-docs` | `/rosetta:write-docs` | B3 | Stub |
-| `query-docs` | `/rosetta:query-docs` | B4 | Stub |
+| `init-docs` | `/rosetta:init-docs` | B2 | Shipped |
+| `write-docs` | `/rosetta:write-docs "<topic>"` | B3 | Shipped |
+| `query-docs` | `/rosetta:query-docs "<question>"` | B4 | Shipped |
 
 ## Install
 
@@ -53,11 +53,11 @@ Breaking changes to the [contract surface](https://github.com/marincervinschi/Ro
 # 2. In any project, scaffold docs/ and start the dev server
 /rosetta:init-docs
 
-# 3. (Phase B3, coming) Write a new doc page
+# 3. Write a new doc page (Claude classifies via Diátaxis and runs pnpm check)
 /rosetta:write-docs "document the JWT auth middleware"
 
-# 4. (Phase B4, coming) Ask the docs for context
-/rosetta:write-docs "how does auth work in this repo?"
+# 4. Ask the docs for cited context (fetches /llms.txt, falls back to disk)
+/rosetta:query-docs "how does auth work in this repo?"
 ```
 
 ## Architecture note: skills over commands
