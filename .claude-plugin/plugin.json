@@ -1,7 +1,7 @@
 {
   "name": "rosetta",
-  "version": "0.1.0",
-  "description": "Operates the Rosetta.md documentation system: scaffolds a Starlight docs site from rosetta-template, writes Diátaxis-compliant pages, and queries live docs via /llms.txt. Use for any documentation workflow in a Rosetta-powered project.",
+  "version": "0.2.0",
+  "description": "Operates the Rosetta.md documentation system: scaffolds a Starlight docs site from rosetta-template into rosetta-docs/, writes Diátaxis-compliant pages, and queries live docs via /llms.txt. Use for any documentation workflow in a Rosetta-powered project.",
   "author": {
     "name": "Marin Cervinschi"
   },
