@@ -1,13 +1,13 @@
 ---
 name: init-docs
-description: Scaffolds a Rosetta.md documentation site into the current project at rosetta-docs/. Use when the user wants to set up docs, initialize documentation, bootstrap rosetta-docs, add a docs folder, or says things like "init rosetta", "scaffold starlight docs", "start a docs site for this repo". Clones rosetta-template at a pinned release, installs deps with the user's preferred package manager (pnpm or npm), starts the dev or docker server, and verifies via /health.
+description: Scaffolds a Rosetta.md documentation site into the current project at rosetta-docs/. Use when the user wants to set up docs, initialize documentation, bootstrap rosetta-docs, add a docs folder, or says things like "init rosetta", "scaffold starlight docs", "start a docs site for this repo". Clones the latest tagged release of rosetta-template (resolved from the remote at runtime — no manual version pin), installs deps with the user's preferred package manager (pnpm or npm), starts the dev or docker server, and verifies via /health.
 argument-hint: "[mode]"
-allowed-tools: Bash(git clone:*) Bash(rm -rf rosetta-docs/.git) Bash(pnpm *) Bash(npm *) Bash(docker compose *) Bash(curl *) Bash(ls *) Bash(test *) Bash(command -v *) Bash(which *)
+allowed-tools: Bash(git clone:*) Bash(git ls-remote:*) Bash(rm -rf rosetta-docs/.git) Bash(pnpm *) Bash(npm *) Bash(docker compose *) Bash(curl *) Bash(ls *) Bash(test *) Bash(command -v *) Bash(which *)
 ---
 
 # init-docs
 
-Bootstraps a Rosetta-powered Starlight documentation site into the user's project by cloning the [`rosetta-template`](https://github.com/MarinCervinschi/rosetta-template) at a pinned release, installing dependencies, and bringing up a local server that exposes `/health`, `/llms.txt`, and the raw-MD endpoints.
+Bootstraps a Rosetta-powered Starlight documentation site into the user's project by cloning the [`rosetta-template`](https://github.com/MarinCervinschi/rosetta-template) at its latest tagged release, installing dependencies, and bringing up a local server that exposes `/health`, `/llms.txt`, and the raw-MD endpoints.
 
 The user asked you to set up docs. Your job is to make that happen reliably, without destroying existing work, to leave the user with a running URL they can open immediately, and then offer to personalize the scaffold with the project's identity in the same session.
 
@@ -18,7 +18,7 @@ Rosetta.md is a two-repo system. The **template** is the physical baseline — a
 Four things matter:
 
 1. **Scoped directory.** We scaffold into `rosetta-docs/`, not `docs/`. Many projects already have a `docs/` folder with hand-written notes; clobbering it would be unforgivable. `rosetta-docs/` is unambiguous.
-2. **Reproducibility.** Clone a *tagged release*, never `main`. Users must be able to reinstall the same plugin version against the same template version months from now.
+2. **Tagged, not bleeding-edge.** Clone the *latest tagged release*, never `main`. A tag gives you a known file-state (schema, endpoints, component surface) — `main` could be mid-refactor the moment you run the skill. The tag is resolved dynamically from the remote at run time so consumers stay current with template releases without a plugin bump; the trade-off is that two runs months apart may scaffold different template versions, which is the cost we pay for not maintaining a version pin in every plugin release.
 3. **Safety.** Never silently overwrite an existing `rosetta-docs/` folder either. Ask before destroying anything.
 4. **Verifiable success.** "Success" means `curl http://localhost:4321/health` returns HTTP 200 with a JSON body identifying the service as `rosetta`. Anything short of that is a failure the user needs to see.
 
@@ -67,18 +67,31 @@ command -v pnpm >/dev/null 2>&1 && echo "pm=pnpm" || (command -v npm >/dev/null 
 
   > This skill needs pnpm (preferred) or npm to install dependencies. Install one of them — pnpm via https://pnpm.io/installation, or ship Node.js which bundles npm — then re-run `/rosetta:init-docs`.
 
-### Step 3 — Clone the pinned template release
+### Step 3 — Resolve the latest template tag and clone it
+
+Fetch the highest `v*` tag from the template's remote — no API, no `gh`, just plain `git`:
 
 ```bash
-git clone --depth 1 --branch v0.3.0 https://github.com/MarinCervinschi/rosetta-template.git rosetta-docs
+LATEST_TAG=$(git ls-remote --tags --sort=-v:refname --refs https://github.com/MarinCervinschi/rosetta-template.git 'v*' | head -n1 | awk '{print $2}' | sed 's|refs/tags/||')
+echo "resolved=${LATEST_TAG}"
+```
+
+`--sort=-v:refname` sorts tags as versions in descending order, so `head -n1` picks the newest (e.g. `v0.4.0` over `v0.3.1`). Record the tag — you'll surface it in the final report.
+
+If `LATEST_TAG` is empty, the remote has no `v*` tags or the network is unavailable. Surface the error verbatim and stop. **Do not** fall back to `main` — the skill's contract is a tagged release.
+
+Then shallow-clone that tag and shed the template's git history:
+
+```bash
+git clone --depth 1 --branch "${LATEST_TAG}" https://github.com/MarinCervinschi/rosetta-template.git rosetta-docs
 rm -rf rosetta-docs/.git
 ```
 
-Why `--depth 1 --branch v0.3.0`: shallow-clone a tagged release, not the mutable `main` branch. This guarantees the same template contract (paths, schema, endpoints, and the `rosetta.config.json` metadata layer introduced in v0.3.0) every time. Later plugin versions may bump this to newer template tags.
+Why `--depth 1 --branch "${LATEST_TAG}"`: shallow-clone a tagged release, not the mutable `main` branch. The tag was resolved moments ago from the remote, so the template contract (paths, schema, endpoints, `rosetta.config.json` shape) matches whatever that tag ships — no manual version pin in this skill.
 
 Why `rm -rf rosetta-docs/.git`: the user's project owns `rosetta-docs/` now. Leaving the template's git history inside creates a nested repo that breaks `git status` in the parent.
 
-If the clone fails (network, rate limit, tag missing), surface the error verbatim and stop — don't fall back to a different branch.
+If the clone fails (network, rate limit, tag disappeared between resolve and clone), surface the error verbatim and stop — don't fall back to a different branch.
 
 ### Step 4 — Install dependencies
 
@@ -135,7 +148,7 @@ If `/health` returns 200 but `service` is not `"rosetta"`: another service is al
 
 Before the final report, ask the user whether to personalize the docs with the project's identity now:
 
-> Your docs are live at http://localhost:4321/. Right now they show the template's default identity (title "Rosetta.md", generic lede). I can personalize them now — detect your project's name, description, and stack from `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `README.md`, preview the changes, and write them only after you confirm. Want me to go ahead? (yes / no)
+> Your docs are live at http://localhost:4321/. Right now they show the template's default identity (title "Rosetta.md", generic lede). I can personalize them now — detect your project's name, tagline, repo URL, and stack from `package.json` / `pyproject.toml` / `go.mod` / `Cargo.toml` / `README.md`, preview the changes, and write them only after you confirm. Want me to go ahead? (yes / no)
 
 - If **no**: skip to Step 9. The final report will mention `/rosetta:personalize-docs` as the follow-up.
 - If **yes**: load the workflow from the sibling skill at `${CLAUDE_SKILL_DIR}/../personalize-docs/SKILL.md`, and continue execution there from its **Step 3 (Detect project metadata)** onward. Rationale: its Steps 1–2 (pre-flight + guard) are trivially satisfied — you just scaffolded `rosetta-docs/`, and the freshly-written `rosetta.config.json` has `"personalized": false`. So there's no need to re-run those checks; jump straight into detection. Treat the preview + confirmation gate in that skill's Step 4 as authoritative — if the user declines there, stop. On success, fold its Step 7 report into the combined report below.
@@ -173,14 +186,15 @@ If the user declined personalize:
 Rosetta docs are live.
 
   URL:       http://localhost:4321/
-  Health:    http://localhost:4321/health  (ok, service=rosetta, v0.3.0)
+  Health:    http://localhost:4321/health  (ok, service=rosetta, <resolved tag>)
   Index:     http://localhost:4321/llms.txt
   Stop:      <command based on mode>
   Location:  rosetta-docs/
+  Template:  <resolved tag>  (latest tagged release at clone time)
   Rules:     rosetta-docs/agent-docs-rules.md  (authoritative; re-read by every rosetta skill)
 
 Identity:  template default (title "Rosetta.md"). Run /rosetta:personalize-docs
-           to brand the site with your project's name, description, and stack.
+           to brand the site with your project's name, tagline, repo URL, and stack.
 
 Next: /rosetta:write-docs "<topic>" or /rosetta:query-docs "<question>".
 ```
@@ -191,22 +205,23 @@ If the user accepted personalize, fold the personalize report in:
 Rosetta docs are live and personalized.
 
   URL:       http://localhost:4321/
-  Health:    http://localhost:4321/health  (ok, service=rosetta, v0.3.0)
+  Health:    http://localhost:4321/health  (ok, service=rosetta, <resolved tag>)
   Index:     http://localhost:4321/llms.txt
   Stop:      <command based on mode>
+  Template:  <resolved tag>
 
 Identity:
-  Name:        <project-name>
-  Tagline:     <tagline>
-  Stack:       <summary>
-  Overview:    http://localhost:4321/explanation/overview/
+  Name:      <project-name>
+  Tagline:   <tagline>
+  Repo URL:  <https URL or "(none)">
+  Stack:     <comma-separated summary of bullet names>
 
 Wrote:
-  rosetta-docs/src/rosetta.config.json                    (metadata + personalized=true)
-  rosetta-docs/src/content/docs/explanation/overview.mdx  (project prose)
+  rosetta-docs/src/rosetta.config.json         (metadata + personalized=true)
+  rosetta-docs/src/content/docs/index.mdx      (## Stack bullets replaced)
 
 Next: /rosetta:write-docs "<topic>" or /rosetta:query-docs "<question>".
-To edit the overview later: /rosetta:write-docs "update the project overview".
+To edit the landing page later: /rosetta:write-docs "update the landing page".
 ```
 
 No marketing copy, no summary of everything you did. The user saw the tool calls; they don't need them narrated.
