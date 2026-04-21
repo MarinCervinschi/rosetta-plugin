@@ -78,7 +78,8 @@ Ask the docs for a cited answer:
 |---|---|
 | `/rosetta:init-docs [dev\|docker]` | Clone the template, start the server, offer to personalize. |
 | `/rosetta:personalize-docs` | One-shot. Brand the site from detected project metadata. |
-| `/rosetta:write-docs "<topic>"` | Write an MDX page. Classifies via Diátaxis, gates on `pnpm check`. |
+| `/rosetta:write-docs "<topic>"` | Write a new MDX page. Classifies via Diátaxis; Stop hook auto-runs `astro check`. |
+| `/rosetta:edit-docs "<page ref> <change>"` | Update an existing page. Targeted patch by default; rewrite mode on explicit phrasing. Stamps `last_updated`. |
 | `/rosetta:doc-auth [context]` | Preset: authentication. |
 | `/rosetta:doc-db [context]` | Preset: schema / entities / ORM. |
 | `/rosetta:doc-migrations [context]` | Preset: migration workflow. |

@@ -6,6 +6,30 @@ The plugin tracks the [`rosetta-template`](https://github.com/MarinCervinschi/ro
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-04-21
+
+Fills the gap left by v0.5.0: the plugin could create and query pages but had no symmetric editor. Raw `Edit` tool usage bypassed the domain discipline (Diátaxis, frontmatter, components, style rules). Closes [issue #3](https://github.com/MarinCervinschi/rosetta-plugin/issues/3).
+
+### Added
+
+- **`/rosetta:edit-docs`** — updates an existing MDX page. Locates the target by explicit path, `/llms.txt` title match (token-overlap scoring), or NL disk search. Refuses on missing file and defers to `/rosetta:write-docs`. Default mode is a **targeted `Edit`** preserving surrounding structure; opts into a **full-section rewrite** only on explicit phrasing ("rewrite the X section", "replace section Y", "redo the introduction"). Dispatches the `rosetta-code-researcher` subagent only when the change asserts code behavior (symbols, endpoints, flows) — prose-only edits skip the dispatch for speed. Preserves `category`, slug, file path, `import` statements, `<CopyMarkdownButton/>` placement, and `description` (unless body summary materially shifted). Re-Reads the file after patching and diffs against a pre-edit snapshot to catch accidental frontmatter drift — the `frontmatter-guard` hook is `PreToolUse(Write)` only and does not cover `Edit`, so this in-skill check is the defense-in-depth replacement.
+- **Always-stamp `last_updated` on every patch.** The skill writes `last_updated: YYYY-MM-DD` (today) into the frontmatter on every edit; adds the key if the page didn't have one. Same-day re-edits are idempotent.
+
+### Changed
+
+- **`write-docs` Step 6 frontmatter** — `last_updated` moves from optional to required on creation. Every new page carries an initial stamp (today's ISO date) so `edit-docs` has a baseline to refresh. Keeps the create/edit contract symmetric. Schema-level impact: zero — `rosetta-template/src/content.config.ts` already exposes `last_updated: z.coerce.date().optional()`, we're just populating it consistently.
+
+### Not changed
+
+- No hook changes. `PostToolUse(Write|Edit)` already marks MDX dirty; `Stop` already runs `astro check` at end-of-turn; both fire for `Edit` transparently.
+- No new subagent and no new playbook — `rosetta-code-researcher` is generic and serves `edit-docs` as-is.
+- No schema change on `rosetta-template`. If the template's `content.config.ts` is later tightened to require `last_updated`, that's a separate template PR.
+
+### Versioning
+
+- Plugin manifest bumped `0.5.0 → 0.5.1`. Additive; no contract-surface changes.
+- Still targets `rosetta-template ≥ v0.3.0`.
+
 ## [0.5.0] — 2026-04-21
 
 Validation moves into the harness; exploration moves into an isolated context. Doc-writing skills now dispatch a read-only researcher subagent instead of grepping the repo in the main thread, and end-of-turn `astro check` runs via a plugin-level Stop hook — Claude no longer has to remember to run it. Addresses [issue #1](https://github.com/MarinCervinschi/rosetta-plugin/issues/1) and [issue #2](https://github.com/MarinCervinschi/rosetta-plugin/issues/2).
