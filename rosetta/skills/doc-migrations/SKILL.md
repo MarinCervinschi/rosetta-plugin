@@ -2,7 +2,7 @@
 name: doc-migrations
 description: Documents the migration workflow of a project — how to add, apply, and roll back migrations; the tool in use; the team's process around destructive changes. Schema itself is covered by /rosetta:doc-db. Use when the user says "document migrations", "document how to add a migration", "write the migration runbook", or similar. Runs the write-docs engine with a migrations-specific playbook, and asks the user at the start whether to run inline or in background.
 argument-hint: "[extra context]"
-allowed-tools: Read Write Glob Grep Bash(test *) Bash(ls rosetta-docs/*) Bash(pnpm *) Bash(npm *) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *) Bash(nohup claude *)
+allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *) Bash(nohup claude *)
 ---
 
 # doc-migrations
@@ -34,17 +34,17 @@ Record the answer. It drives Step 4.
 
 ### Step 3 — Read the migrations playbook + rules
 
-Read `${CLAUDE_SKILL_DIR}/../write-docs/references/migrations.md`. Then follow `write-docs` Step 2–4 (package manager detection + rules + schema).
+Read `${CLAUDE_SKILL_DIR}/../write-docs/references/migrations.md`. Then follow `write-docs` Step 2–3 (rules + schema).
 
 ### Step 4 — Execute
 
-- **inline**: continue with `write-docs` Step 5 through Step 12. Expect a how-to page (author/apply/rollback) and often an explanation page (strategy). Use `<Warning type="danger">` for destructive operations, `caution` for process gates. Ask about staging / approvals / rollback playbook when not evident from the code.
+- **inline**: continue with `write-docs` Step 4 through Step 11. When you reach `write-docs` Step 5 (researcher dispatch), pass `playbook_path=${CLAUDE_SKILL_DIR}/../write-docs/references/migrations.md` so the researcher knows to look for migration scripts, CI jobs, and rollback tooling. Expect a how-to page (author/apply/rollback) and often an explanation page (strategy). Use `<Warning type="danger">` for destructive operations, `caution` for process gates. Ask about staging / approvals / rollback playbook when the researcher's *Edge cases* section surfaces gaps (the code alone rarely tells you).
 
 - **background**: compose a self-contained prompt that embeds this skill's workflow, the migrations playbook, and the user's pre-framed topic plus `$ARGUMENTS`. Dispatch via a forked subagent or a backgrounded `claude -p`. Return the identifier and stop.
 
 ### Step 5 — Report (inline only)
 
-Use `write-docs`'s Step 12 report format. Cite the `migrations.md` playbook sections applied ("per migrations.md: named the gap — no documented rollback playbook, surfaced in the explanation page rather than glossed over").
+Use `write-docs`'s Step 11 report format. Cite the `migrations.md` playbook sections applied ("per migrations.md: named the gap — no documented rollback playbook, surfaced in the explanation page rather than glossed over"). The Stop hook enforces `astro check` — don't claim the check passed yourself.
 
 ## Constraints
 

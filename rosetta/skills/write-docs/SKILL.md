@@ -1,13 +1,13 @@
 ---
 name: write-docs
-description: Documents a feature, concept, API, or workflow as an MDX page in a Rosetta docs site at rosetta-docs/. Use when the user says "document X", "write docs for Y", "write a how-to for Z", "explain how A works", "add a reference page for B", or asks to capture knowledge about a code area. Classifies via Diátaxis (tutorials / how-to / reference / explanation), drafts MDX with valid frontmatter, uses rosetta components where they fit, and validates with `pnpm check` (or `npm run check`) before reporting success.
+description: Documents a feature, concept, API, or workflow as an MDX page in a Rosetta docs site at rosetta-docs/. Use when the user says "document X", "write docs for Y", "write a how-to for Z", "explain how A works", "add a reference page for B", or asks to capture knowledge about a code area. Delegates code exploration to the rosetta-code-researcher subagent, classifies via Diátaxis (tutorials / how-to / reference / explanation), drafts MDX with valid frontmatter, uses rosetta components where they fit, and relies on the plugin's Stop hook to auto-run `astro check` at end-of-turn.
 argument-hint: "<topic>"
-allowed-tools: Read Write Glob Grep Bash(test *) Bash(ls rosetta-docs/*) Bash(pnpm *) Bash(npm *) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
+allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
 ---
 
 # write-docs
 
-Writes a new MDX page into a Rosetta-powered docs site, picks the right Diátaxis section, fills in valid frontmatter, uses custom components where they belong, and gates on `pnpm check` / `npm run check` before declaring success.
+Writes a new MDX page into a Rosetta-powered docs site, picks the right Diátaxis section, fills in valid frontmatter, and uses custom components where they belong. Code exploration is delegated to the `rosetta-code-researcher` subagent so drafting starts with a clean context. The end-of-turn `astro check` is enforced by the plugin's Stop hook — you don't run it yourself.
 
 The user asked you to document something. Your job is to translate their topic into a page that lands in the correct folder, passes the schema, renders cleanly, and doesn't invent code behavior that isn't in the codebase.
 
@@ -19,7 +19,7 @@ Three things matter:
 
 1. **Re-read the rules fresh.** The canonical contract lives in `rosetta-docs/agent-docs-rules.md`. Read it at the start of every invocation. The user may have edited it since install, and the build will reject frontmatter the rules file didn't promise.
 2. **Classify before drafting.** Diátaxis isn't a tag you pick at the end — it dictates voice, length, and what's permissible on the page. Deciding first is cheaper than rewriting after.
-3. **Gate on the build, not on vibes.** `astro check` (via `pnpm check` or `npm run check`) is the only objective verdict. If it fails, the page isn't done — no matter how good the prose looks.
+3. **Gate on the build, not on vibes.** `astro check` is the only objective verdict. If it fails, the page isn't done — no matter how good the prose looks. The plugin's Stop hook runs the check automatically whenever you edit MDX under `rosetta-docs/src/content/docs/`; failures surface as stderr in your next turn.
 
 ## Path discipline
 
@@ -48,27 +48,15 @@ Stop. Do not try to create `rosetta-docs/` yourself — that's the init skill's 
 
 Note: an unrelated `docs/` at the project root is fine to leave alone. This skill only operates on `rosetta-docs/`.
 
-### Step 2 — Detect the package manager
-
-The gate in Step 9 runs `astro check`. Pick the launcher:
-
-```bash
-command -v pnpm >/dev/null 2>&1 && echo "pm=pnpm" || (command -v npm >/dev/null 2>&1 && echo "pm=npm" || echo "pm=none")
-```
-
-- `pm=pnpm` → use `pnpm check`.
-- `pm=npm` → use `npm run check`.
-- `pm=none` → stop and tell the user to install pnpm or npm. (Unlikely if init-docs already ran.)
-
-### Step 3 — Re-read the rules
+### Step 2 — Re-read the rules
 
 Read `rosetta-docs/agent-docs-rules.md` in full. Cite sections by number later (e.g. *"per §4 decision tree, this is a how-to"*, *"§6 forbids inline `<script>`, using a component instead"*). This file is authoritative — never paraphrase from memory.
 
-### Step 4 — Re-read the schema
+### Step 3 — Re-read the schema
 
 Read `rosetta-docs/src/content.config.ts`. Confirm the current required/optional fields before drafting frontmatter. The template may have added fields in a minor release; hardcoding from this skill's body would drift.
 
-### Step 5 — Classify via §4 decision tree
+### Step 4 — Classify via §4 decision tree
 
 Apply the tree in order; the first `yes` wins:
 
@@ -79,11 +67,31 @@ Apply the tree in order; the first `yes` wins:
 
 Declare the classification to the user before writing, with a one-line justification. If it's a close call between two sections, say so and proceed with the one you chose — don't ping-pong.
 
-### Step 6 — Explore the user's code
+### Step 5 — Delegate code exploration to `rosetta-code-researcher`
 
-Use `Glob`, `Grep`, and `Read` to gather what the page needs to say. Look at actual implementations, not imagined ones. If the behavior is ambiguous (multiple code paths, unclear branching, undocumented side effect), **ask the user** rather than guessing. Fabricated behavior is worse than a missing page.
+Dispatch the `rosetta-code-researcher` subagent via the Agent/Task tool to survey the code area. Exploring here in the main thread pollutes the drafting context — the subagent runs in its own window and returns a structured brief.
 
-### Step 7 — Draft MDX with valid frontmatter
+Dispatch prompt should include:
+
+- `task_description` — what you're documenting (restate the user's topic in concrete terms)
+- `playbook_path` — omit for generic topics (this skill), or pass the absolute path to a topic-specific playbook (used by the `doc-*` presets that wrap this skill)
+- `scope_hint` — optional: paths/globs you have a prior reason to prioritize (e.g. if the user mentioned a specific module)
+
+The subagent returns a five-section brief:
+
+```
+## Files explored
+## Key symbols
+## Relationships / flow
+## Edge cases & ambiguities
+## Citations for drafting
+```
+
+**Draft from the brief. Do not re-explore.** Every code claim in the MDX must trace back to a `path:line` citation in the returned brief — if the brief doesn't cite it, don't claim it in the page.
+
+If the brief's *Edge cases & ambiguities* section flags a question you cannot answer from citations, **ask the user** before drafting. Fabricated behavior is worse than a missing page.
+
+### Step 6 — Draft MDX with valid frontmatter
 
 Required fields per §2:
 
@@ -102,7 +110,7 @@ Body voice per §5:
 - Every code fence gets a language tag (` ```ts `, not ` ``` `) — the raw-MD endpoint and highlighter both rely on it.
 - American English.
 
-### Step 8 — Reach for components where §3 says they fit
+### Step 7 — Reach for components where §3 says they fit
 
 Import from `~/components/*.astro`. Only reach for a component when it earns its place:
 
@@ -111,27 +119,24 @@ Import from `~/components/*.astro`. Only reach for a component when it earns its
 - `<ApiRef method="..." path="..." ...>` — one per endpoint on reference pages.
 - `<CopyMarkdownButton />` — **never** place manually. §3 is explicit: Starlight's PageTitle override auto-injects it.
 
-### Step 9 — Write the file
+### Step 8 — Write the file
 
 Path: `rosetta-docs/src/content/docs/<category>/<slug>.mdx`. Slug is kebab-case derived from the topic (`"document the JWT middleware"` → `jwt-middleware.mdx` under `reference/` or `how-to/`). Sub-grouping folders are allowed (e.g. `rosetta-docs/src/content/docs/how-to/deploy/vercel.mdx`) per §1.
 
 If the file already exists, stop and ask — don't silently overwrite someone else's work.
 
-### Step 10 — Gate: `check`
+### Step 9 — Gate: Stop hook runs `astro check`
 
-Using the package manager picked in Step 2, from the project root:
+**You do not run the check.** The plugin ships a Stop hook that runs `pnpm -C rosetta-docs check` (or `npm --prefix rosetta-docs run check` as a fallback) at the end of every turn where any MDX under `rosetta-docs/src/content/docs/` was written or edited. A failure surfaces the `astro check` output as stderr in your next turn — fix and the next turn's Stop re-runs the check.
 
-- pnpm: `pnpm -C rosetta-docs check`
-- npm:  `npm --prefix rosetta-docs run check`
-
-Both run `astro check` which validates the Zod schema against every page. If it fails, iterate on your draft — do not report success. Common failures and their §:
+If the next turn opens with check output in context, that is your signal. Iterate on the draft until clean. Common failures and their §:
 
 - Missing required frontmatter → §2.
 - `category` doesn't equal parent folder → §2.
 - Inline `<script>` or raw `<div>` in MDX → §6.
 - Extra top-level folder under `rosetta-docs/src/content/docs/` → §1 / §6.
 
-### Step 11 — Optional: verify render (if dev server is up)
+### Step 10 — Optional: verify render (if dev server is up)
 
 First confirm the server is a rosetta site (not some other service bound to :4321):
 
@@ -150,7 +155,7 @@ Both should be `200`. The `.md` twin is part of the contract — if the HTML ren
 
 If `no-rosetta` or the health check fails, skip the render verification — it's not this skill's job to start the server, and a missing server is not a write-docs failure. Note the skip in the report.
 
-### Step 12 — Report
+### Step 11 — Report
 
 Tell the user exactly:
 
@@ -158,15 +163,15 @@ Tell the user exactly:
 2. The classification and the one §4 rule that made the call.
 3. Any rule sections consulted that shaped non-obvious choices (e.g. *"§3: did not add a `<Warning>` even though the topic touches auth — no destructive action"*).
 4. The running URL (if server up) and the raw-MD twin URL.
-5. The `check` status.
+5. A short note that `astro check` will be enforced by the Stop hook at end-of-turn. Do not claim "check passed" yourself — you haven't run it; the hook will.
 
 ## Constraints
 
-- **Never report success with a failing `check`.** The build is the contract.
-- **Never fabricate code behavior.** If the read doesn't resolve a question, ask or leave a clearly marked TODO in the MDX.
+- **Never claim the check passed yourself.** You don't run it — the Stop hook does. If the next turn opens with check output, iterate; otherwise the hook was silent (pass).
+- **Never fabricate code behavior.** If the researcher's brief doesn't cite it, don't claim it. If ambiguity persists, ask the user or leave a clearly marked TODO in the MDX.
+- **Never re-explore in the main thread.** Dispatch `rosetta-code-researcher` once; draft from its brief. If the brief is insufficient, dispatch a narrower second query rather than Globbing/Grepping yourself.
 - **Never place `<CopyMarkdownButton />` by hand.** §3 is explicit — it's auto-injected.
 - **Never create a new top-level folder** under `rosetta-docs/src/content/docs/` beyond the four Diátaxis sections (§1, §6).
-- **Never silently switch the user's package manager.** Use whichever init-docs installed; don't run `pnpm` if the user is on npm or vice versa — you'll desync lockfiles.
 - **Never overwrite a pre-existing MDX at the target path** without explicit user confirmation.
 
 ## What the user should see at the end
@@ -179,11 +184,12 @@ Wrote rosetta-docs/src/content/docs/how-to/jwt-middleware.mdx.
   Classification:  how-to  (§4: the user has a named goal — "document the JWT middleware" — and the page is a recipe, not a lookup.)
   URL:             http://localhost:4321/how-to/jwt-middleware/
   Raw MD:          http://localhost:4321/how-to/jwt-middleware.md
-  Check:           pass (pnpm check)
+  Check:           Stop hook will run `astro check` at end-of-turn.
 
 Notes:
   - §3: chose prose over <Warning> — no destructive hazard.
   - §6: replaced inline <br> with Markdown blank line.
+  - Researcher brief cited 4 files under src/middleware/; draft used those citations only.
 ```
 
 No summary of everything you did; the user saw the tool calls.

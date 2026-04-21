@@ -6,6 +6,37 @@ The plugin tracks the [`rosetta-template`](https://github.com/MarinCervinschi/ro
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-04-21
+
+Validation moves into the harness; exploration moves into an isolated context. Doc-writing skills now dispatch a read-only researcher subagent instead of grepping the repo in the main thread, and end-of-turn `astro check` runs via a plugin-level Stop hook — Claude no longer has to remember to run it. Addresses [issue #1](https://github.com/MarinCervinschi/rosetta-plugin/issues/1) and [issue #2](https://github.com/MarinCervinschi/rosetta-plugin/issues/2).
+
+### Added
+
+- **`rosetta-code-researcher` subagent** at `rosetta/agents/rosetta-code-researcher.md`. Read-only (`Read` / `Grep` / `Glob`); takes a `task_description`, optional `playbook_path`, optional `scope_hint`; returns a structured 5-section brief (files explored, key symbols, relationships, edge cases, citations). Every symbol / relationship / citation bullet MUST carry a `path:line` reference. Budget: ≤25 tool calls — partial-brief + explicit gap note on budget exhaustion, no exhaustive repo crawls.
+- **`rosetta/skills/write-docs/references/metadata.md`** — new playbook loaded by `personalize-docs` when it dispatches the researcher for project identity detection (name, tagline, repo URL, stack). Scopes the scan to manifest files only — no source-code reads.
+- **Plugin-level hooks** at `rosetta/hooks/hooks.json`:
+  - `SessionStart` · **session-probe.sh** — probes `http://localhost:4321/health` and reads `rosetta-docs/src/rosetta.config.json`; prints a one-line status banner ("scaffolded + personalized as X · server up at …") to context so downstream skills skip redundant probes. Silent when the project isn't rosetta-related.
+  - `PreToolUse(Write)` · **frontmatter-guard.sh** — on MDX writes under `rosetta-docs/src/content/docs/<diátaxis>/`, compares the incoming frontmatter `category` against the parent folder. Warning-only (exit 1 + stderr) — never blocks, because legitimate Diátaxis reorgs happen.
+  - `PreToolUse(Write)` · **personalize-guard.sh** — blocks a second write to `rosetta-docs/src/rosetta.config.json` when the current file has `"personalized": true` and the incoming write would change `name` or `tagline`. Enforces the `personalize-docs` one-shot contract at the harness level. Idempotent writes (same identity) and legitimate resets (`personalized: false`) pass through.
+  - `PostToolUse(Write|Edit)` · **mark-dirty.sh** — appends touched MDX paths to `/tmp/rosetta-dirty-$CLAUDE_SESSION_ID`. Always exit 0; never blocks.
+  - `Stop` · **check-on-stop.sh** — if any MDX was dirtied during the turn, runs `pnpm -C rosetta-docs check` (npm fallback) once. Exit 2 + stderr on failure so the model sees the `astro check` output in the next turn. No-op when no MDX touched.
+
+### Changed
+
+- **`write-docs` SKILL.md** restructured. Step 2 (manual package-manager detection) removed — the Stop hook handles it. Step 6 (code exploration) replaced with a researcher-dispatch step; the skill drafts from the returned brief, never re-explores. Step 10 (manual check gate) replaced with a note that the Stop hook enforces `astro check` at end-of-turn. Steps renumbered accordingly. Constraints updated: the skill now never claims "check passed" — only the hook's silence means pass.
+- **`personalize-docs` SKILL.md** Step 3 (metadata detection) delegated to the researcher with `playbook_path` pointing at the new `metadata.md`. Step 6 check gate removed (Stop hook covers).
+- **`doc-auth` / `doc-db` / `doc-patterns` / `doc-migrations` SKILL.md** Step 4 inline flows updated to pass the preset's `references/*.md` as `playbook_path` when the write-docs engine dispatches the researcher. Step renumbering for new write-docs layout. Background-mode constraint on `doc-auth` reworded — the Stop hook is inherited by the subagent session, not a separate gate.
+- **`allowed-tools` for write-docs, personalize-docs, and the four doc-\* presets** gain `Task`; they drop the now-unused `Bash(pnpm *)` / `Bash(npm *)` / (personalize-docs) `Bash(command -v *)` grants.
+
+### Removed
+
+- **Manual `pnpm check` / `npm run check` steps** from `write-docs` and `personalize-docs`. The Stop hook is the only gate; skills that duplicated it would double-check on every turn.
+
+### Versioning
+
+- Plugin manifest bumped `0.4.2 → 0.5.0`. The hook contract and subagent are a visible surface change — existing users will see a status banner at session start and end-of-turn `astro check` runs on MDX edits.
+- Still targets `rosetta-template ≥ v0.3.0` (the `/health` endpoint, `rosetta.config.json` shape, and Diátaxis folder layout the hooks rely on all ship since v0.3.0).
+
 ## [0.4.2] — 2026-04-19
 
 ### Changed

@@ -2,7 +2,7 @@
 name: personalize-docs
 description: Personalizes a freshly-scaffolded Rosetta docs site with the project's name, tagline, repo URL, and stack. Use right after /rosetta:init-docs, or when the user says "personalize the docs", "customize the docs for this project", "brand the docs with this project's name". One-shot — detects if it has already been run (via the personalized flag in rosetta.config.json) and refuses to re-run. Changes to the landing page later go through /rosetta:write-docs.
 argument-hint: ""
-allowed-tools: Read Write Edit Glob Grep Bash(test *) Bash(ls *) Bash(cat *) Bash(grep *) Bash(pnpm *) Bash(npm *)
+allowed-tools: Read Write Edit Glob Grep Task Bash(test *) Bash(ls *) Bash(cat *) Bash(grep *)
 ---
 
 # personalize-docs
@@ -63,23 +63,21 @@ If `already-personalized`, read the JSON's `name` and `personalizedAt` fields fo
 
 Stop. No changes.
 
-### Step 3 — Detect project metadata
+### Step 3 — Detect project metadata (via `rosetta-code-researcher`)
 
-Read whichever of these exist at the project root, in this order. Stop at the first match for each field; don't merge across files unless the primary source lacks a value.
+Dispatch the `rosetta-code-researcher` subagent to do the detection scan. The researcher reads the project's manifests and returns a 5-section brief; you convert that brief into the preview (Step 4) and the two file writes (Step 5).
 
-| Signal | Files to read |
-|---|---|
-| Project name | `package.json → name` · `pyproject.toml → [project].name` · `go.mod → module` (use the last path segment) · `Cargo.toml → [package].name` · fallback: directory basename |
-| Tagline / description | `package.json → description` · `pyproject.toml → [project].description` · first paragraph of `README.md` (skip a top-level `# <title>` if it's just the project name). Compress to a one-liner for the tagline; keep the longer version (if distinct) for the landing-page opener. |
-| Repo URL | `package.json → repository.url` (strip `git+` prefix and trailing `.git`) · `pyproject.toml → [project.urls]` · `Cargo.toml → [package].repository` · `.git/config` remote origin URL if it's a GitHub / GitLab / Bitbucket HTTPS URL |
-| Language / runtime | File presence heuristic: `package.json` → Node.js (check `engines`, `type: module`, TS config for a more specific label); `pyproject.toml` or `requirements.txt` → Python; `go.mod` → Go; `Cargo.toml` → Rust; `Gemfile` → Ruby; `composer.json` → PHP; `pom.xml`/`build.gradle` → Java/JVM; `*.csproj` → .NET |
-| Framework | From the language manifest's dependencies: `next` / `react` / `astro` / `@nestjs/*` / `express` / `vue` / `svelte` (Node); `flask` / `django` / `fastapi` / `starlette` (Python); `gin-gonic/gin` / `labstack/echo` / `gofiber/fiber` (Go); `rails` (Gemfile); `laravel` / `symfony` (composer); `spring-boot` (pom/gradle); `rocket` / `actix-web` / `axum` (Cargo) |
-| Database / ORM | `schema.sql` / `*.prisma` / `alembic.ini` / `knexfile.*` / `drizzle.config.*` / presence of `models/` dir with ORM-style classes |
-| Deployment hints | `Dockerfile`, `docker-compose.yml`, `compose.yml`, `fly.toml`, `vercel.json`, `netlify.toml`, `railway.json` |
+Dispatch prompt should include:
 
-Don't guess anything you can't see. If a signal is absent or ambiguous, **omit the corresponding stack bullet entirely** — empty rows under `## Stack` are worse than a shorter, honest list.
+- `task_description`: `"Detect project identity for Rosetta docs personalization — project name, tagline, repo URL, language/runtime, framework, database/ORM, deployment targets."`
+- `playbook_path`: `${CLAUDE_PLUGIN_ROOT}/skills/write-docs/references/metadata.md` (the researcher follows this playbook — it's the authoritative list of files to read, fields to extract, and what to surface as an ambiguity)
+- `scope_hint`: project root only (`package.json`, `pyproject.toml`, `go.mod`, `Cargo.toml`, `README.md`, `Dockerfile`, etc.). The researcher does **not** scan source files for this task.
 
-Also read the current `rosetta-docs/src/rosetta.config.json` — any non-default values the user may have edited by hand should be **preserved** (you'll merge with detected values in Step 4, not overwrite blindly).
+The researcher returns a brief with **Citations for drafting** as a flat list of `- <field>: <value> (<source>:<line>)` bullets. Use those verbatim in your preview. The **Edge cases & ambiguities** section lists conflicts (e.g. two framework candidates) that you must surface to the user before writing — do not resolve them silently.
+
+Also Read the current `rosetta-docs/src/rosetta.config.json` yourself — any non-default values the user may have edited by hand should be **preserved** (you'll merge with detected values in Step 4, not overwrite blindly). This read stays in the main thread because the target file is in `rosetta-docs/`, not in the project surface the researcher scans.
+
+Don't guess anything the brief doesn't cite. If a signal is absent, **omit the corresponding stack bullet entirely** — empty rows under `## Stack` are worse than a shorter, honest list.
 
 ### Step 4 — Draft the two surfaces and preview
 
@@ -157,20 +155,17 @@ Rules for the bullet list:
 
 If the project's `README.md` has a clearly better opening paragraph than the template's boilerplate (the two paragraphs immediately after `# {config.name}` and before `## Stack`), surface that in the preview and, on `yes`, replace those paragraphs too — still as a surgical `Edit`, still preserving the surrounding structure. Don't invent prose; only substitute when the README actually gives you something.
 
-### Step 6 — Gate: `pnpm check` / `npm run check`
+### Step 6 — Gate: Stop hook runs `astro check`
 
-Detect the package manager on PATH and run the schema gate from the project root:
+**You do not run the check.** The plugin's Stop hook runs `pnpm -C rosetta-docs check` (or `npm --prefix rosetta-docs run check` as a fallback) at end-of-turn because Step 5 edited an MDX under `rosetta-docs/src/content/docs/`. A failure surfaces in your next turn's context as stderr — iterate on your edits until the hook is silent.
 
-- pnpm: `pnpm -C rosetta-docs check`
-- npm: `npm --prefix rosetta-docs run check`
-
-Must report `0 errors`. If it fails, the common culprits are:
+If the check fails, common culprits in this skill's scope:
 
 - A typo in the `StackIcon` import or JSX on the landing page — the `import StackIcon from '~/components/StackIcon.astro';` line must stay intact at the top.
 - An unescaped quote or brace in a stack note breaking MDX parsing.
 - JSON syntax error from a control character in the name or tagline. Re-examine the detected values; if one contains a newline or quote, sanitize and re-write.
 
-Iterate until clean. Don't report success with a failing check.
+Don't claim success in Step 7 if the next turn opens with hook stderr — fix and re-iterate.
 
 ### Step 7 — Report
 
@@ -178,7 +173,7 @@ Tell the user exactly:
 
 1. The two file paths touched.
 2. The detected project name, tagline, repo URL, and stack bullets that you baked in.
-3. The gate result (`pnpm check` → 0 errors).
+3. A note that `astro check` will run via the Stop hook at end-of-turn. Don't claim "0 errors" yourself — you haven't run the check.
 4. If a dev server is up: the URL to click (`http://localhost:4321/` — the new branded hero + stack list).
 5. A note that the skill is now one-shot-locked — for metadata edits, edit the JSON directly; for landing-page prose edits, use `/rosetta:write-docs "update the landing page"`.
 
@@ -208,7 +203,7 @@ Personalized rosetta-docs/ for <project-name>.
     rosetta-docs/src/rosetta.config.json         (metadata populated + personalized=true)
     rosetta-docs/src/content/docs/index.mdx      (## Stack bullets replaced)
 
-  Gate: pnpm check → 0 errors.
+  Check: Stop hook will run `astro check` at end-of-turn.
 
   Next: /rosetta:write-docs "<your first real page topic>".
   To edit the landing page later: /rosetta:write-docs "update the landing page".

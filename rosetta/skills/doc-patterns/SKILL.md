@@ -2,7 +2,7 @@
 name: doc-patterns
 description: Documents the cross-cutting patterns in a codebase — decorators, middleware, filters on controllers, factory / repository / service conventions, the transversal techniques a contributor needs to recognize. Use when the user says "document the patterns", "document the conventions", "document how decorators are used here", "document the middleware stack", or similar. Runs the write-docs engine with a patterns-specific playbook, and asks the user at the start whether to run inline or in background.
 argument-hint: "[extra context]"
-allowed-tools: Read Write Glob Grep Bash(test *) Bash(ls rosetta-docs/*) Bash(pnpm *) Bash(npm *) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *) Bash(nohup claude *)
+allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *) Bash(nohup claude *)
 ---
 
 # doc-patterns
@@ -34,17 +34,17 @@ Record the answer. It drives Step 4.
 
 ### Step 3 — Read the patterns playbook + rules
 
-Read `${CLAUDE_SKILL_DIR}/../write-docs/references/patterns.md`. Then follow `write-docs` Step 2–4 (package manager detection + rules + schema).
+Read `${CLAUDE_SKILL_DIR}/../write-docs/references/patterns.md`. Then follow `write-docs` Step 2–3 (rules + schema).
 
 ### Step 4 — Execute
 
-- **inline**: continue with `write-docs` Step 5 through Step 12. Apply the "3+ recurrences = a pattern" rule from patterns.md. Classify each pattern's page: rationale goes to `explanation/`, adding-a-new-one goes to `how-to/`. Pause to ask the user whether any pattern is being phased out before writing.
+- **inline**: continue with `write-docs` Step 4 through Step 11. When you reach `write-docs` Step 5 (researcher dispatch), pass `playbook_path=${CLAUDE_SKILL_DIR}/../write-docs/references/patterns.md` — the researcher will apply the "3+ recurrences = a pattern" rule when reporting symbols, and surface single-call-site findings under *Edge cases & ambiguities* rather than citing them as patterns. Classify each pattern's page: rationale goes to `explanation/`, adding-a-new-one goes to `how-to/`. Pause to ask the user whether any pattern is being phased out before writing.
 
 - **background**: compose a self-contained prompt that embeds this skill's workflow, the patterns playbook, and the user's pre-framed topic plus `$ARGUMENTS`. Dispatch via a forked subagent or a backgrounded `claude -p`. Return the identifier and stop.
 
 ### Step 5 — Report (inline only)
 
-Use `write-docs`'s Step 12 report format. Cite the `patterns.md` playbook sections applied ("per patterns.md: excluded the `@legacy_auth` decorator — only 1 call site, below the 3+ threshold").
+Use `write-docs`'s Step 11 report format. Cite the `patterns.md` playbook sections applied ("per patterns.md: excluded the `@legacy_auth` decorator — only 1 call site, below the 3+ threshold"). The Stop hook enforces `astro check` — don't claim the check passed yourself.
 
 ## Constraints
 
