@@ -98,10 +98,7 @@ Required fields per §2:
 - `title` — string. Sentence-case, per §5 ("How to roll back a deploy", not "Rolling Back Deploys").
 - `description` — one sentence, non-empty, `<meta description>` + `/llms.txt` entry.
 - `category` — exactly the parent folder name (`tutorials` | `how-to` | `reference` | `explanation`). Mismatch = build failure.
-
-Optional:
-
-- `last_updated` — ISO 8601 date, only when the page's truth has a recency that matters.
+- `last_updated` — today's ISO date, `YYYY-MM-DD` format. Every page carries a stamp at creation time so `/rosetta:edit-docs` has a baseline to refresh. Date-only (no time, no timezone) matches the template's `z.coerce.date()` coercion and keeps diffs small across same-day edits.
 
 Body voice per §5:
 
