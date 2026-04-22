@@ -1,15 +1,15 @@
 ---
 name: write-docs
-description: Documents a feature, concept, API, or workflow as an MDX page in a Rosetta docs site at rosetta-docs/. Use when the user says "document X", "write docs for Y", "write a how-to for Z", "explain how A works", "add a reference page for B", or asks to capture knowledge about a code area. Delegates code exploration to the rosetta-code-researcher subagent, classifies via Diátaxis (tutorials / how-to / reference / explanation), drafts MDX with valid frontmatter, uses rosetta components where they fit, and relies on the plugin's Stop hook to auto-run `astro check` at end-of-turn.
+description: Documents a feature, concept, API, or workflow in a Rosetta docs site at rosetta-docs/. Use when the user says "document X", "write docs for Y", "write a how-to for Z", "explain how A works", "add a reference page for B", or asks to capture knowledge about a code area. Delegates code exploration to the rosetta-code-researcher subagent, classifies via Diátaxis (tutorials / how-to / reference / explanation), and drafts EITHER a single page OR a landing + children split when the topic has orthogonal subsystems. Relies on the plugin's Stop hook to auto-run `astro check` at end-of-turn.
 argument-hint: "<topic>"
 allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
 ---
 
 # write-docs
 
-Writes a new MDX page into a Rosetta-powered docs site, picks the right Diátaxis section, fills in valid frontmatter, and uses custom components where they belong. Code exploration is delegated to the `rosetta-code-researcher` subagent so drafting starts with a clean context. The end-of-turn `astro check` is enforced by the plugin's Stop hook — you don't run it yourself.
+Writes new documentation into a Rosetta-powered docs site. The output shape depends on the topic: a **single page** for a focused subject, or a **landing page + children** when the topic has orthogonal subsystems (the data layer, the auth surface, the cross-cutting patterns). Code exploration is delegated to the `rosetta-code-researcher` subagent so drafting starts with a clean context. The end-of-turn `astro check` is enforced by the plugin's Stop hook — you don't run it yourself.
 
-The user asked you to document something. Your job is to translate their topic into a page that lands in the correct folder, passes the schema, renders cleanly, and doesn't invent code behavior that isn't in the codebase.
+The user asked you to document something. Your job is to translate their topic into pages that land in the correct folder, pass the schema, render cleanly in the Starlight sidebar, and don't invent code behavior that isn't in the codebase.
 
 ## Why this skill exists
 
@@ -91,7 +91,36 @@ The subagent returns a five-section brief:
 
 If the brief's *Edge cases & ambiguities* section flags a question you cannot answer from citations, **ask the user** before drafting. Fabricated behavior is worse than a missing page.
 
-### Step 6 — Draft MDX with valid frontmatter
+### Step 6 — Decide: single page or landing + children?
+
+Long topics deserve multiple pages; the Starlight sidebar renders folder hierarchy as nested groups. Use the researcher's brief to pick one of two shapes:
+
+- **Single page** — the topic maps to one subject. Examples: "document the JWT middleware", "how to deploy to Vercel", "why we chose Prisma over TypeORM". The brief's *Key symbols* cluster around one area. No relationship diagram would add clarity.
+
+- **Landing + children** — the topic has a parent concept with orthogonal sub-topics. The researcher surfaces ≥3 logical subsystems/clusters that can stand alone as pages. Examples: "document the database" → users / billing / content / migrations; "document auth" → sessions / tokens / guards / permissions; "document the patterns" → decorators / middleware / repositories. A relationship/flow diagram clarifies how the children connect.
+
+Declare the choice to the user in one line before drafting, e.g.:
+
+> Split: landing at `reference/database/` + 4 children (users, billing, content, migrations).
+> or
+> Single page at `how-to/jwt-middleware.mdx` — the topic maps to one middleware unit.
+
+If a topic playbook was passed to the researcher (the `doc-*` presets), its guidance overrides this heuristic — some playbooks (`db.md`) prescribe multi-page output by default.
+
+**Landing-page shape** (when splitting):
+
+- Path: `rosetta-docs/src/content/docs/<category>/<slug>/index.mdx` — the folder's index becomes the group's landing.
+- Frontmatter: same schema as any page. `title` = the parent concept ("Database"). `category` = the Diátaxis folder.
+- Body: 1–2 paragraphs of overview prose (what this area is, boundaries, top-level invariants).
+- **Relationship / flow diagram** via `<Mermaid chart={\`...\`} />` or a fenced ` ```mermaid ` block — both render per rules §3. Nodes are *subsystems* (or their key entities); edges are conceptual connections. Not an exhaustive diagram of every file — one zoom level up.
+- Linked list of children with 1-line descriptions: `- [Users](./users/) — identity, sessions, auth claims`.
+- Optional "Further reading" pointing to related pages in other categories.
+
+**Child pages** — regular write-docs pages. Each lives at `rosetta-docs/src/content/docs/<category>/<slug>/<child>.mdx`. Same frontmatter schema. `category` equals the landing's `category` (all children of `reference/database/` carry `category: reference`). Same body voice and component rules.
+
+Starlight's `autogenerate: { directory: <category> }` nests the folder automatically — no sidebar config changes needed. The landing renders as the group parent; children sort alphabetically by filename underneath.
+
+### Step 7 — Draft MDX with valid frontmatter
 
 Required fields per §2:
 
@@ -107,7 +136,7 @@ Body voice per §5:
 - Every code fence gets a language tag (` ```ts `, not ` ``` `) — the raw-MD endpoint and highlighter both rely on it.
 - American English.
 
-### Step 7 — Reach for components where §3 says they fit
+### Step 8 — Reach for components where §3 says they fit
 
 Import from `~/components/*.astro`. Only reach for a component when it earns its place:
 
@@ -116,13 +145,24 @@ Import from `~/components/*.astro`. Only reach for a component when it earns its
 - `<ApiRef method="..." path="..." ...>` — one per endpoint on reference pages.
 - `<CopyMarkdownButton />` — **never** place manually. §3 is explicit: Starlight's PageTitle override auto-injects it.
 
-### Step 8 — Write the file
+### Step 9 — Write the file(s)
 
-Path: `rosetta-docs/src/content/docs/<category>/<slug>.mdx`. Slug is kebab-case derived from the topic (`"document the JWT middleware"` → `jwt-middleware.mdx` under `reference/` or `how-to/`). Sub-grouping folders are allowed (e.g. `rosetta-docs/src/content/docs/how-to/deploy/vercel.mdx`) per §1.
+**Single-page mode:** path is `rosetta-docs/src/content/docs/<category>/<slug>.mdx`. Slug is kebab-case derived from the topic (`"document the JWT middleware"` → `jwt-middleware.mdx` under `reference/` or `how-to/`). Sub-grouping folders are allowed (e.g. `rosetta-docs/src/content/docs/how-to/deploy/vercel.mdx`) per §1.
 
-If the file already exists, stop and ask — don't silently overwrite someone else's work.
+**Landing + children mode:** write `rosetta-docs/src/content/docs/<category>/<slug>/index.mdx` (landing) and one `rosetta-docs/src/content/docs/<category>/<slug>/<child>.mdx` per child page. Write the landing first so Starlight's sidebar picks up the group name immediately. Write children in a stable order (the order you'll list them on the landing).
 
-### Step 9 — Gate: Stop hook runs `astro check`
+**Existence guard — refuse in all of these cases:**
+
+- Single-page mode: the target `<slug>.mdx` already exists.
+- Landing + children mode: the target `<slug>/index.mdx` already exists **OR** a flat-page `<slug>.mdx` already exists at the same location (the landing would collide with an existing page).
+
+On collision, stop and tell the user:
+
+> A page already exists at `<path>`. Use `/rosetta:edit-docs` to update it, or re-invoke me with a different topic.
+
+Do not silently overwrite, merge, or restructure existing work.
+
+### Step 10 — Gate: Stop hook runs `astro check`
 
 **You do not run the check.** The plugin ships a Stop hook that runs `pnpm -C rosetta-docs check` (or `npm --prefix rosetta-docs run check` as a fallback) at the end of every turn where any MDX under `rosetta-docs/src/content/docs/` was written or edited. A failure surfaces the `astro check` output as stderr in your next turn — fix and the next turn's Stop re-runs the check.
 
@@ -133,7 +173,7 @@ If the next turn opens with check output in context, that is your signal. Iterat
 - Inline `<script>` or raw `<div>` in MDX → §6.
 - Extra top-level folder under `rosetta-docs/src/content/docs/` → §1 / §6.
 
-### Step 10 — Optional: verify render (if dev server is up)
+### Step 11 — Optional: verify render (if dev server is up)
 
 First confirm the server is a rosetta site (not some other service bound to :4321):
 
@@ -141,26 +181,32 @@ First confirm the server is a rosetta site (not some other service bound to :432
 curl -fsS http://localhost:4321/health | grep -q '"service":"rosetta"' && echo "rosetta-up" || echo "no-rosetta"
 ```
 
-If `rosetta-up`, fetch the new page and its raw-MD twin:
+If `rosetta-up`, fetch every page that was written and its raw-MD twin:
 
 ```bash
+# Single-page
 curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:4321/<category>/<slug>/
 curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:4321/<category>/<slug>.md
+
+# Landing + children — probe landing plus each child
+curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:4321/<category>/<slug>/
+curl -fsS -o /dev/null -w "%{http_code}\n" http://localhost:4321/<category>/<slug>/<child>/
 ```
 
-Both should be `200`. The `.md` twin is part of the contract — if the HTML renders but the raw-MD 404s, something is off with the route setup and the user should know.
+All should be `200`. The `.md` twin is part of the contract — if the HTML renders but the raw-MD 404s, something is off with the route setup and the user should know.
 
 If `no-rosetta` or the health check fails, skip the render verification — it's not this skill's job to start the server, and a missing server is not a write-docs failure. Note the skip in the report.
 
-### Step 11 — Report
+### Step 12 — Report
 
 Tell the user exactly:
 
-1. The file path written (e.g. `rosetta-docs/src/content/docs/how-to/jwt-middleware.mdx`).
-2. The classification and the one §4 rule that made the call.
-3. Any rule sections consulted that shaped non-obvious choices (e.g. *"§3: did not add a `<Warning>` even though the topic touches auth — no destructive action"*).
-4. The running URL (if server up) and the raw-MD twin URL.
-5. A short note that `astro check` will be enforced by the Stop hook at end-of-turn. Do not claim "check passed" yourself — you haven't run it; the hook will.
+1. The file(s) written. For single-page mode, one path. For landing + children mode, list the landing + each child.
+2. The split mode explicitly (`Shape: single page` or `Shape: landing + N children`).
+3. The classification and the one §4 rule that made the call.
+4. Any rule sections consulted that shaped non-obvious choices (e.g. *"§3: did not add a `<Warning>` even though the topic touches auth — no destructive action"*).
+5. The running URL (if server up) and the raw-MD twin URL(s).
+6. A short note that `astro check` will be enforced by the Stop hook at end-of-turn. Do not claim "check passed" yourself — you haven't run it; the hook will.
 
 ## Constraints
 
@@ -175,9 +221,12 @@ Tell the user exactly:
 
 A short report, nothing more:
 
+Single-page example:
+
 ```
 Wrote rosetta-docs/src/content/docs/how-to/jwt-middleware.mdx.
 
+  Shape:           single page
   Classification:  how-to  (§4: the user has a named goal — "document the JWT middleware" — and the page is a recipe, not a lookup.)
   URL:             http://localhost:4321/how-to/jwt-middleware/
   Raw MD:          http://localhost:4321/how-to/jwt-middleware.md
@@ -187,6 +236,26 @@ Notes:
   - §3: chose prose over <Warning> — no destructive hazard.
   - §6: replaced inline <br> with Markdown blank line.
   - Researcher brief cited 4 files under src/middleware/; draft used those citations only.
+```
+
+Landing + children example:
+
+```
+Wrote 5 pages under rosetta-docs/src/content/docs/reference/database/.
+
+  Shape:           landing + 4 children
+  Classification:  reference  (§4: lookup surface for the data layer.)
+  Landing:         reference/database/index.mdx        → /reference/database/
+  Children:        reference/database/users.mdx        → /reference/database/users/
+                   reference/database/billing.mdx      → /reference/database/billing/
+                   reference/database/content.mdx      → /reference/database/content/
+                   reference/database/migrations.mdx   → /reference/database/migrations/
+  Check:           Stop hook will run `astro check` at end-of-turn.
+
+Notes:
+  - per db.md: scoped to 4 subsystems from FK clustering; no per-table enumeration.
+  - Landing uses a <Mermaid> relationship diagram across the 4 subsystems.
+  - Migrations rendered as its own child page, per db.md.
 ```
 
 No summary of everything you did; the user saw the tool calls.
