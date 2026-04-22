@@ -1,54 +1,37 @@
 ---
 name: doc-auth
-description: Documents the authentication layer of a project — sessions, tokens, middleware, guards, decorators, the permission model. Use when the user says "document auth", "write docs for authentication", "document the login flow", "document how sessions work", or similar. Runs the write-docs engine with an auth-specific playbook, and asks the user at the start whether to run inline (pause for clarifications) or in background (best-judgment, report when done).
+description: Documents the authentication layer of a project — flow, session or token handling, middleware / guards / decorators, and the permission model. Use when the user says "document auth", "write docs for authentication", "document the login flow", "document how sessions work", "document the permission model", or similar. Hands off to /rosetta:write-docs with the auth playbook; lets write-docs decide single-page vs landing + children based on the researcher's brief.
 argument-hint: "[extra context]"
-allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *) Bash(nohup claude *)
+allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
 ---
 
 # doc-auth
 
-Documents the authentication layer of the project — flow, sessions or tokens, middleware / guards, decorators, the permission model. A thin preset on top of `write-docs`, pre-framed for auth topics and loaded with an auth-specific playbook.
+Thin preset over `/rosetta:write-docs`, pre-framed for authentication.
 
-Pre-framed topic: "authentication in this project — flow, session or token handling, middleware/guards, and the permission model".
-
-Playbook to read: `${CLAUDE_SKILL_DIR}/../write-docs/references/auth.md`.
+Pre-framed topic: **"authentication in this project — flow, session or token handling, middleware / guards / decorators, and the permission model"**.
 
 ## Workflow
 
 ### Step 1 — Pre-flight
 
-Run the same `rosetta-docs/` check as `write-docs` Step 1. If `rosetta-docs/src/content/docs` is missing, redirect the user to `/rosetta:init-docs` and stop.
+Run `/rosetta:write-docs`'s Step 1 (`rosetta-docs/` must exist). If missing, refer to `/rosetta:init-docs` and stop.
 
-### Step 2 — Ask: inline or background?
+### Step 2 — Hand off to write-docs
 
-Prompt the user once, verbatim:
+Execute `/rosetta:write-docs` with:
 
-> Should I run inline or in background?
->
-> - **inline** (default): I'll work step-by-step and pause to ask you clarifying questions when the code is ambiguous (multiple auth schemes, a migration in flight, etc.). You'll see the draft before I write anything.
-> - **background**: I'll make best-judgment decisions without pausing and write the page unattended. Faster when the codebase is obvious, weaker when there's ambiguity.
->
-> (Type `inline` / `background`, or press enter for inline.)
+- **topic**: the pre-framed topic above + any `$ARGUMENTS` as extra context
+- **playbook_path**: `${CLAUDE_PLUGIN_ROOT}/skills/write-docs/references/auth.md`
 
-Record the answer. It drives Step 4.
+write-docs will dispatch `rosetta-code-researcher` with the auth playbook, apply the multi-page decision (Step 6), draft the page(s), and hand off to the Stop hook for `astro check`. If the codebase has multiple subsystems (sessions + tokens + guards + permissions as distinct layers), write-docs will split into a landing + children; if it's a single scheme, it produces one page.
 
-### Step 3 — Read the auth playbook + rules
+### Step 3 — Report
 
-Read `${CLAUDE_SKILL_DIR}/../write-docs/references/auth.md` for the topic-specific guidance. Then follow `write-docs` Step 2 (read `rosetta-docs/agent-docs-rules.md`) and Step 3 (read `rosetta-docs/src/content.config.ts`).
-
-### Step 4 — Execute
-
-- **inline**: continue with `write-docs` Step 4 (classify via Diátaxis §4) through Step 11 (report). When you reach `write-docs` Step 5 (the researcher dispatch), pass `playbook_path=${CLAUDE_SKILL_DIR}/../write-docs/references/auth.md` so the researcher explores with auth-specific guidance (where sessions/tokens/guards live, which symbols matter). Apply the auth playbook's rules on which components fit and which questions to ask when ambiguous. Honor the "interactive" intent: if the researcher's *Edge cases & ambiguities* surface unresolved questions, stop and ask the user before drafting.
-
-- **background**: compose a self-contained prompt that embeds (a) this skill's workflow, (b) the auth playbook, (c) the user's pre-framed topic plus `$ARGUMENTS` as extra context, and (d) the instruction to make best-judgment decisions without pausing. Dispatch it — either via a forked subagent if your session exposes one, or via a backgrounded `claude -p --plugin-dir <plugin-path> "..."` through Bash. Return the identifier (subagent ID or PID + log path) so the user can follow along, then stop. Do not run the work yourself.
-
-### Step 5 — Report (inline only)
-
-Use `write-docs`'s Step 11 report format. Cite the `auth.md` playbook sections that shaped non-obvious choices ("per auth.md: declined `<CodeTabs>` since the project is single-language"). The Stop hook enforces `astro check` — don't claim the check passed yourself.
+write-docs produces the user-facing report. Add one line citing auth.md sections that shaped non-obvious choices, e.g. *"per auth.md: declined `<CodeTabs>` since the project is single-language."*
 
 ## Constraints
 
 - **Never document secrets**, even as examples. Placeholders only.
 - **Never invent auth schemes** the code doesn't implement.
-- **Never skip the inline/background question** — it's the only place the user steers the run.
-- **Background mode inherits the Stop hook.** The subagent session still has the plugin's `PostToolUse`/`Stop` hooks active, so `astro check` runs at end-of-turn inside the subagent too — don't replicate it manually.
+- **Never claim `astro check` passed.** The Stop hook is authoritative.

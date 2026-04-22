@@ -78,15 +78,14 @@ Ask the docs for a cited answer:
 |---|---|
 | `/rosetta:init-docs [dev\|docker]` | Clone the template, start the server, offer to personalize. |
 | `/rosetta:personalize-docs` | One-shot. Brand the site from detected project metadata. |
-| `/rosetta:write-docs "<topic>"` | Write a new MDX page. Classifies via Diátaxis; Stop hook auto-runs `astro check`. |
+| `/rosetta:write-docs "<topic>"` | Write new docs. Single page OR landing + children, auto-decided from the researcher's brief. Classifies via Diátaxis. Stop hook auto-runs `astro check`. |
 | `/rosetta:edit-docs "<page ref> <change>"` | Update an existing page. Targeted patch by default; rewrite mode on explicit phrasing. Stamps `last_updated`. |
-| `/rosetta:doc-auth [context]` | Preset: authentication. |
-| `/rosetta:doc-db [context]` | Preset: schema / entities / ORM. |
-| `/rosetta:doc-migrations [context]` | Preset: migration workflow. |
-| `/rosetta:doc-patterns [context]` | Preset: decorators / middleware / filters. |
+| `/rosetta:doc-auth [context]` | Preset: authentication — flow, sessions / tokens, middleware / guards, permission model. |
+| `/rosetta:doc-db [context]` | Preset: data layer — schemas as logical groupings, flow, relations, invariants, query patterns, and the migration workflow. Never enumerates tables. |
+| `/rosetta:doc-patterns [context]` | Preset: cross-cutting patterns — decorators, middleware, filters, repositories. |
 | `/rosetta:query-docs "<question>"` | Cited answer from your docs. Auto-invokable. |
 
-Each `doc-*` preset runs inline (interactive) by default and asks at start whether to fork to background instead.
+Each `doc-*` preset hands off to `/rosetta:write-docs` with a topic-specific playbook. Exploration is delegated to the `rosetta-code-researcher` subagent in an isolated context; drafting starts from its structured brief.
 
 ## Release history
 

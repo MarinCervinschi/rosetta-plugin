@@ -6,6 +6,33 @@ The plugin tracks the [`rosetta-template`](https://github.com/MarinCervinschi/ro
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-04-22
+
+Closes [issue #4](https://github.com/MarinCervinschi/rosetta-plugin/issues/4). Previous `/rosetta:doc-db` produced a flat per-table dump — a rendered mirror of the DDL that already lives in `schema.prisma` / `models/` / migration SQL. Docs that restate the DDL add no value and rot the moment a column is added.
+
+v0.6.0 reshapes the doc-* line around what the schema files **can't** show: logical subsystems, flow, relations, invariants, query patterns. Output is now multi-page by default — a landing page with a relationship diagram plus one child page per subsystem, auto-nested in the Starlight sidebar via folder hierarchy.
+
+### Added
+
+- **Multi-page output in `/rosetta:write-docs`.** New Step 6 after researcher dispatch decides single-page vs landing + children based on the researcher's brief. Landing lives at `<category>/<slug>/index.mdx` with a `<Mermaid>` relationship diagram + linked children; each child is a regular write-docs page at `<category>/<slug>/<child>.mdx`. Starlight's `autogenerate` sidebar nests them automatically — no sidebar config needed. The existence guard extends to cover landing-vs-flat-page collisions (refuses gracefully, suggests `/rosetta:edit-docs`).
+
+### Changed
+
+- **`/rosetta:doc-db` rewritten**. Now owns the whole data-layer surface (schemas as logical groupings, flow, relations, invariants, query patterns) AND the migration workflow (merged in from the removed `/rosetta:doc-migrations`). **Explicit non-goal: never enumerates tables or columns** — schema files are the DDL reference. Subsystem pages have a fixed four-section shape: Purpose, Flow, Relations & invariants, Query patterns. Migration workflow renders as one child page (`<slug>/migrations.mdx`) inside the data-layer output.
+- **`db.md` playbook rewritten** to prescribe multi-page narrative output; drives the researcher toward FK clustering and query-pattern extraction, away from per-table enumeration. Old `migrations.md` playbook content merged in as the "Migrations page structure" section.
+- **All three remaining `doc-*` presets collapsed** to the same 3-step shape: pre-flight → hand off to write-docs with `playbook_path` → minimal report. The "inline or background?" question is gone — the `rosetta-code-researcher` subagent from v0.5.0 handles exploration in an isolated context; a separate background mode added nothing. Background-dispatch code (`nohup claude -p`) removed from all presets. `allowed-tools` on each no longer grants `Bash(nohup claude *)`.
+
+### Removed
+
+- **`/rosetta:doc-migrations` skill.** Folded into `/rosetta:doc-db`. Users who type the old command will see "skill not found" — no in-plugin redirect. CHANGELOG + README removal are the documentation.
+- **`skills/write-docs/references/migrations.md` playbook.** Content merged into `db.md`.
+- **`skills/doc-migrations/` directory.**
+
+### Versioning
+
+- Plugin manifest bumped `0.5.1 → 0.6.0`. Removing a public command is a contract-surface change; minor bump per the CHANGELOG convention.
+- Still targets `rosetta-template ≥ v0.3.0`. No template changes required — Mermaid (`src/components/Mermaid.astro`) and `autogenerate`-from-folder sidebar (`astro.config.mjs`) both ship.
+
 ## [0.5.1] — 2026-04-21
 
 Fills the gap left by v0.5.0: the plugin could create and query pages but had no symmetric editor. Raw `Edit` tool usage bypassed the domain discipline (Diátaxis, frontmatter, components, style rules). Closes [issue #3](https://github.com/MarinCervinschi/rosetta-plugin/issues/3).

@@ -1,53 +1,38 @@
 ---
 name: doc-patterns
-description: Documents the cross-cutting patterns in a codebase — decorators, middleware, filters on controllers, factory / repository / service conventions, the transversal techniques a contributor needs to recognize. Use when the user says "document the patterns", "document the conventions", "document how decorators are used here", "document the middleware stack", or similar. Runs the write-docs engine with a patterns-specific playbook, and asks the user at the start whether to run inline or in background.
+description: Documents the cross-cutting patterns in a codebase — decorators, middleware, filters on controllers, factory / repository / service conventions, the transversal techniques a contributor needs to recognize. Use when the user says "document the patterns", "document the conventions", "document how decorators are used here", "document the middleware stack", or similar. Hands off to /rosetta:write-docs with the patterns playbook; lets write-docs decide single-page vs landing + children based on how many distinct techniques the researcher surfaces.
 argument-hint: "[extra context]"
-allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *) Bash(nohup claude *)
+allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
 ---
 
 # doc-patterns
 
-Documents the cross-cutting, transversal techniques used throughout the codebase — decorators, middleware, filters, factories, repository / service layers. A thin preset on top of `write-docs`, pre-framed for patterns and loaded with a patterns-specific playbook.
+Thin preset over `/rosetta:write-docs`, pre-framed for cross-cutting patterns — the transversal techniques used throughout the codebase (decorators, middleware, filters, factories, repository / service layers).
 
-Pre-framed topic: "cross-cutting patterns in this project — decorators, middleware, filters, and other transversal techniques a new contributor needs to recognize".
-
-Playbook to read: `${CLAUDE_SKILL_DIR}/../write-docs/references/patterns.md`.
+Pre-framed topic: **"cross-cutting patterns in this project — decorators, middleware, filters, and other transversal techniques a new contributor needs to recognize"**.
 
 ## Workflow
 
 ### Step 1 — Pre-flight
 
-Run the same `rosetta-docs/` check as `write-docs` Step 1. If missing, redirect to `/rosetta:init-docs` and stop.
+Run `/rosetta:write-docs`'s Step 1 (`rosetta-docs/` must exist). If missing, refer to `/rosetta:init-docs` and stop.
 
-### Step 2 — Ask: inline or background?
+### Step 2 — Hand off to write-docs
 
-Prompt the user once, verbatim:
+Execute `/rosetta:write-docs` with:
 
-> Should I run inline or in background?
->
-> - **inline** (default): I'll work step-by-step and pause to ask which of the recurring techniques I find are current vs. legacy — I can't reliably tell from the code alone.
-> - **background**: I'll document every pattern I find that shows up 3+ times, without flagging deprecation state.
->
-> (Type `inline` / `background`, or press enter for inline.)
+- **topic**: the pre-framed topic above + any `$ARGUMENTS` as extra context
+- **playbook_path**: `${CLAUDE_PLUGIN_ROOT}/skills/write-docs/references/patterns.md`
 
-Record the answer. It drives Step 4.
+write-docs dispatches `rosetta-code-researcher` with the patterns playbook. The researcher applies the "3+ recurrences = a pattern" rule from patterns.md — one-off techniques become *Edge cases & ambiguities*, not *Key symbols*. write-docs then decides single-page vs landing + children based on how many distinct patterns survive the 3+ filter. If the researcher surfaces ≥3 distinct patterns (typical for medium-to-large codebases), write-docs splits into a landing + per-pattern children.
 
-### Step 3 — Read the patterns playbook + rules
+### Step 3 — Report
 
-Read `${CLAUDE_SKILL_DIR}/../write-docs/references/patterns.md`. Then follow `write-docs` Step 2–3 (rules + schema).
-
-### Step 4 — Execute
-
-- **inline**: continue with `write-docs` Step 4 through Step 11. When you reach `write-docs` Step 5 (researcher dispatch), pass `playbook_path=${CLAUDE_SKILL_DIR}/../write-docs/references/patterns.md` — the researcher will apply the "3+ recurrences = a pattern" rule when reporting symbols, and surface single-call-site findings under *Edge cases & ambiguities* rather than citing them as patterns. Classify each pattern's page: rationale goes to `explanation/`, adding-a-new-one goes to `how-to/`. Pause to ask the user whether any pattern is being phased out before writing.
-
-- **background**: compose a self-contained prompt that embeds this skill's workflow, the patterns playbook, and the user's pre-framed topic plus `$ARGUMENTS`. Dispatch via a forked subagent or a backgrounded `claude -p`. Return the identifier and stop.
-
-### Step 5 — Report (inline only)
-
-Use `write-docs`'s Step 11 report format. Cite the `patterns.md` playbook sections applied ("per patterns.md: excluded the `@legacy_auth` decorator — only 1 call site, below the 3+ threshold"). The Stop hook enforces `astro check` — don't claim the check passed yourself.
+write-docs produces the user-facing report. Add one line citing patterns.md sections that shaped non-obvious choices, e.g. *"per patterns.md: excluded the `@legacy_auth` decorator — only 1 call site, below the 3+ threshold."*
 
 ## Constraints
 
-- **Never document a one-off** as a pattern. 3+ recurrences is the bar.
+- **Never document a one-off as a pattern.** 3+ recurrences is the bar.
 - **Never catalogue imported framework decorators** — focus on the team's own idioms.
 - **Ask about deprecation before writing.** A pattern that's being phased out deserves a direction-of-travel note, not an endorsement.
+- **Never claim `astro check` passed.** The Stop hook is authoritative.
