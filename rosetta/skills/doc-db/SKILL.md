@@ -1,53 +1,52 @@
 ---
 name: doc-db
-description: Documents the database layer of a project — schema, tables, entities, relationships, ORM models. Migrations are covered separately by /rosetta:doc-migrations. Use when the user says "document the database schema", "document the tables", "document the data model", "write docs for the entities", or similar. Runs the write-docs engine with a db-specific playbook, and asks the user at the start whether to run inline or in background.
+description: Documents the data-layer surface of a project — schemas (as logical groupings), flow, relations, invariants, ORM patterns, AND the migration workflow. One skill for the whole data area. Use when the user says "document the database", "document the tables", "document the data model", "document the schema", "write docs for the entities", "document migrations", "write the migration runbook", or similar. Produces a landing page + subsystem children by default (not a per-table dump — schema files are the DDL reference).
 argument-hint: "[extra context]"
-allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *) Bash(nohup claude *)
+allowed-tools: Read Write Glob Grep Task Bash(test *) Bash(ls rosetta-docs/*) Bash(curl -fsS http://localhost:4321/*) Bash(command -v *)
 ---
 
 # doc-db
 
-Documents the database layer — schema, tables, entities, relationships, ORM models. A thin preset on top of `write-docs`, pre-framed for db topics and loaded with a db-specific playbook. Migrations are a separate concern — use `/rosetta:doc-migrations` for those.
+Thin preset over `/rosetta:write-docs`, pre-framed for the data layer. Owns the whole data-layer surface: schemas as logical groupings, flow, relations, invariants, ORM patterns, and the migration workflow. Migration workflow renders as one child page inside the data-layer output, not a separate topic.
 
-Pre-framed topic: "database layer of this project — schema, entities, relationships, and the ORM patterns".
+Pre-framed topic: **"the data-layer surface of this project — schemas as logical groupings, flow, relations, invariants, ORM patterns, and the migration workflow"**.
 
-Playbook to read: `${CLAUDE_SKILL_DIR}/../write-docs/references/db.md`.
+## Why this skill exists
+
+Schema files (`schema.prisma`, `models/`, `entities/`, migration SQL) are the authoritative reference for table structure. Docs that restate them add no value — they're a rendered mirror of the DDL that goes stale the moment a column is added.
+
+This skill documents **what the schema files can't show**: the logical grouping of entities into subsystems, how data flows through the system, the invariants the schema enforces, and how application code actually reads and writes the data. A reader who wants column types opens the schema file; a reader who wants to understand *why* the data is shaped this way opens these docs.
+
+The output is multi-page by default — one landing with a relationship diagram plus one child per subsystem — because the data layer almost always has orthogonal concerns (identity, billing, content, …) that earn their own page. A single-page output is correct only when the project genuinely has one subsystem.
 
 ## Workflow
 
 ### Step 1 — Pre-flight
 
-Run the same `rosetta-docs/` check as `write-docs` Step 1. If missing, redirect to `/rosetta:init-docs` and stop.
+Run `/rosetta:write-docs`'s Step 1 (`rosetta-docs/` must exist). If missing, refer to `/rosetta:init-docs` and stop.
 
-### Step 2 — Ask: inline or background?
+### Step 2 — Hand off to write-docs
 
-Prompt the user once, verbatim:
+Execute `/rosetta:write-docs` with:
 
-> Should I run inline or in background?
->
-> - **inline** (default): I'll work step-by-step and pause to ask you which tables are load-bearing, whether to include indexes, and other scope questions. You'll see the draft before I write.
-> - **background**: I'll make best-judgment decisions and document what looks central, without pausing.
->
-> (Type `inline` / `background`, or press enter for inline.)
+- **topic**: the pre-framed topic above + any `$ARGUMENTS` as extra context
+- **playbook_path**: `${CLAUDE_PLUGIN_ROOT}/skills/write-docs/references/db.md`
 
-Record the answer. It drives Step 4.
+write-docs will:
 
-### Step 3 — Read the db playbook + rules
+1. Dispatch `rosetta-code-researcher` with the db.md playbook. The researcher clusters entities into subsystems (by ORM directory, table-name prefix, or FK graph) and extracts query patterns from application code.
+2. Apply the multi-page decision (write-docs Step 6). The db.md playbook prescribes landing + children by default; write-docs honors that unless the project has a single flat subsystem.
+3. Draft the landing (`reference/database/index.mdx`) with a Mermaid relationship diagram, plus one child per subsystem, plus a child for the migration workflow.
+4. Hand off to the Stop hook for `astro check`.
 
-Read `${CLAUDE_SKILL_DIR}/../write-docs/references/db.md`. Then follow `write-docs` Step 2–3 (rules + schema).
+### Step 3 — Report
 
-### Step 4 — Execute
-
-- **inline**: continue with `write-docs` Step 4 through Step 11. When you reach `write-docs` Step 5 (the researcher dispatch), pass `playbook_path=${CLAUDE_SKILL_DIR}/../write-docs/references/db.md` so the researcher uses the db playbook's guidance on where to look for schema files, ORM models, and migrations-as-source-of-truth. Use Markdown tables for columns; skip `<ApiRef>` (it's for HTTP endpoints, not tables, per db.md). Ask the user which tables matter most before exhaustively listing.
-
-- **background**: compose a self-contained prompt that embeds this skill's workflow, the db playbook, and the user's pre-framed topic plus `$ARGUMENTS` as extra context. Dispatch via a forked subagent or a backgrounded `claude -p` through Bash. Return the identifier, then stop.
-
-### Step 5 — Report (inline only)
-
-Use `write-docs`'s Step 11 report format. Cite the `db.md` playbook sections that shaped non-obvious choices ("per db.md: scoped to 6 load-bearing tables instead of all 34"). The Stop hook enforces `astro check` — don't claim the check passed yourself.
+write-docs produces the user-facing report. Add one line citing the db.md sections that shaped non-obvious choices, e.g. *"per db.md: 4 subsystems from FK clustering; migrations rendered as its own child page."*
 
 ## Constraints
 
-- **Never auto-document every table** unless the user confirms — especially in larger projects.
-- **Never use `<ApiRef>` for tables.**
-- **Don't document library-provided tables** (session storage, job queues, framework metadata) unless the project interacts with them.
+- **Never enumerate tables or columns.** Schema files are the DDL reference; docs describe what they can't show — schemas as logical groupings, flow, relations, invariants, query patterns.
+- **Never use `<ApiRef>`.** It's for HTTP endpoints, not database entities.
+- **Never document library-provided tables** (session storage, job queues, framework migration metadata) unless the application interacts with them at the code layer.
+- **Never invent migration process** (rollback playbook, approval flow) the project doesn't have. Name the gap.
+- **Never claim `astro check` passed.** The Stop hook is authoritative.
